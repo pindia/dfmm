@@ -7,6 +7,11 @@ class Object(object):
         self.name = name
         self.tags = []
         self.extra_data = ''
+        
+        self.added = False
+        self.modified = False
+        self.deleted = False
+        
     def add_tag(self, tag):
         self.tags.append(tag)
     def add_data(self, data):

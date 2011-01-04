@@ -12,7 +12,8 @@ ONLY_IN_SPECIFIC_TYPES = {'BODY':'BODY',
                           'CREATURE':'CREATURE',
                           'BODY_DETAIL_PLAN':'BODY_DETAIL_PLAN',
                           'ENTITY':'ENTITY',
-                          'COLOR':'DESCRIPTOR_COLOR'}
+                          'COLOR':'DESCRIPTOR_COLOR',
+                          'TRANSLATION':'LANGUAGE'}
 
 def decode_file(path):
     ''' Parses a raw file and returns a list of the objects in it '''
@@ -31,7 +32,7 @@ def decode_file(path):
             current_object = Object(fname, current_type, current_root_type, current_name)
             objects.append(current_object)
         else: # Unrecognized tag; add it to the object's extra data
-            current_object.add_data(raw_tag)
+            current_object.add_data(raw_tag+'\n')
     return objects
    
 def decode_directory(path):
