@@ -17,12 +17,13 @@ def encode_objects(objects, targetpath):
         f.write(''.join(map(encode_object, objects)))
         f.close()
 
-def encode_mod(mod, targetpath):
-    f = open(targetpath, 'wt')
+def encode_mod(mod):
+    f = open(mod.path, 'wt')
     f.write('!DFMM|NAME|%s\n' % mod.name)
     for object in mod.changed_objects:
         f.write('!'+object.to_dfmm_command() + '\n')
     f.close()
+    
     
 if __name__ == '__main__':
     from decode import *

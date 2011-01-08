@@ -13,7 +13,7 @@ class ModEditorFrame(wx.Frame):
         dataset.apply_mod_for_editing(mod)
         self.objects = dataset.objects
         
-        self.path = mod.path
+        self.mod = mod
         
         self.core_object_lookup = {}
         for object in self.core_objects:
@@ -29,7 +29,11 @@ class ModEditorFrame(wx.Frame):
         self.nb = wx.Notebook(self, -1, wx.Point(0,0), wx.Size(0,0), wx.NB_MULTILINE)
         
         for header in headers.keys():
-            self.nb.AddPage(ObjectTypePanel(self.nb, header, headers[header], self), header)
+            changed_objects = len([o for o in mod.changed_objects if o.type == header])
+            text = header
+            if changed_objects != 0:
+                text += ' [%d]' % changed_objects
+            self.nb.AddPage(ObjectTypePanel(self.nb, header, headers[header], self), text)
         
         self.filemenu= wx.Menu()
         menu_save = self.filemenu.Append(wx.ID_SAVE, "&Save","")
@@ -105,7 +109,7 @@ class ModEditorFrame(wx.Frame):
         panel.listbox_clicked(None)
         
     def save(self, event):
-        encode_mod(Mod('Test', self.path, self.objects), self.path)
+        encode_mod(Mod(self.mod.name, self.mod.path, self.objects))
         
     def exit(self, event):
         if self.parent:
@@ -150,6 +154,8 @@ class ObjectTypePanel(wx.Panel):
             self.listbox.Append(o.name)
             self.update_listbox(i)
         
+        self.listbox_clicked(None)
+        
         self.Show(True)
 
     def listbox_clicked(self, event):
@@ -161,9 +167,11 @@ class ObjectTypePanel(wx.Panel):
     def data_modified(self, event):
         i = self.listbox.GetSelections()[0]
         object = self.objects[i]
-        if object.added or object.deleted:
+        if object.deleted:
             return
         object.extra_data = self.editor.GetString(0, self.editor.GetLastPosition())
+        if object.added:
+            return
         core_object = self.root_frame.core_object_lookup[object.type+object.name]
         if core_object.extra_data != object.extra_data:
             object.modified = True

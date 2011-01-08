@@ -1,3 +1,4 @@
+import copy
 
 class DataSet(object):
     def __init__(self, objects):
@@ -40,7 +41,31 @@ class DataSet(object):
             if current_object:
                 self.objects.remove(current_object)
             self.objects.append(object)
-
+            
+    def difference(self, other):
+        ''' Returns a list of objects corresponding to the changes made by the given dataset'''
+        my_objects = set(self.objects)
+        other_objects = set(other.objects)
+        other_filenames = set([o.file_name for o in other.objects])
+        changes = []
+        for object in other_objects - my_objects: # Added
+            o = copy.deepcopy(object)
+            o.added = True
+            changes.append(o)
+        for object in my_objects - other_objects: # Deleted
+            if object.file_name not in other_filenames:
+                continue # If the other set doesn't have the core file, assume it should be kept
+            o = copy.deepcopy(object)
+            o.deleted = True
+            changes.append(o)
+        for object in my_objects:
+            other_object = other.get_object(object.type, object.name)
+            if other_object and object.extra_data != other_object.extra_data:
+                o = copy.deepcopy(object)
+                o.modified = True
+                o.extra_data = other_object.extra_data
+                changes.append(o)
+        return changes
 
 class Mod(object):
     ''' A mod object stores only the objects it changes..'''
@@ -86,6 +111,12 @@ class Object(object):
         self.extra_data += data
     def __repr__(self):
         return '%s:%s' % (self.type, self.name)
+        
+    def __eq__(self, other):
+        return self.type == other.type and self.name == other.name
+    
+    def __hash__(self):
+        return hash(self.type + self.name)
         
     def to_dfmm_command(self):
         id = '%s|%s|%s|%s' % (self.file_name, self.root_type, self.type, self.name)

@@ -39,11 +39,12 @@ def decode_directory(path):
     ''' Parses all files in a directory as raw files and returns all the objects '''
     objects = []
     for f in sorted(os.listdir(path)):
-        objects.extend(decode_file(os.path.join(path, f)))
-    return objects
+        if f.endswith('.txt') and 'readme' not in f.lower():
+            objects.extend(decode_file(os.path.join(path, f)))
+    return DataSet(objects)
 
 def decode_core():
-    return DataSet(decode_directory('core'))
+    return decode_directory('core')
     
 def get_mod_list():
     return [f for f in os.listdir('mods') if f.endswith('.dfmod')]
@@ -76,9 +77,12 @@ def decode_all_mods():
    
 if __name__ == '__main__': 
     #objects =  decode_file('raw/objects/inorganic_stone_layer.txt')
-    #objects = decode_directory('core')
+    print decode_directory('objects')
     #print len(objects)
     #print objects[0].extra_data
-    #print decode_mod('mods/test.dfmod').modified_objects
-    print decode_all_mods()
+    #print decode_mod('mods/higher-learning.dfmod').added_objects
+    #print decode_all_mods()
+    #core_dataset = decode_core()
+    #defense_dataset = decode_directory('defense')
+    #print core_dataset.difference(defense_dataset)
     
