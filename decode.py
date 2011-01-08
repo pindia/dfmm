@@ -41,10 +41,44 @@ def decode_directory(path):
     for f in sorted(os.listdir(path)):
         objects.extend(decode_file(os.path.join(path, f)))
     return objects
+
+def decode_core():
+    return DataSet(decode_directory('core'))
+    
+def get_mod_list():
+    return [f for f in os.listdir('mods') if f.endswith('.dfmod')]
+    
+def decode_mod(path):
+    f = open(path, 'rt')
+    commands = f.read().split('!')[1:]
+    for command in commands:
+        elems = command.strip().split('|')
+        if elems[1] == 'NAME':
+            mod = Mod(elems[2], path, [])
+            continue
+        dfmm, keyword, filename, root_type, type, name, data = elems
+        o = Object(filename, type, root_type, name)
+        o.extra_data = data
+        if keyword == 'ADD':
+            o.added = True
+        elif keyword == 'MODIFY':
+            o.modified = True
+        elif keyword == 'DELETE':
+            o.deleted = True
+        else:
+            continue
+        mod.objects.append(o)
+    return mod
+        
+def decode_all_mods():
+    return [decode_mod(os.path.join('mods', p)) for p in get_mod_list()]
+        
    
 if __name__ == '__main__': 
     #objects =  decode_file('raw/objects/inorganic_stone_layer.txt')
-    objects = decode_directory('core')
-    print len(objects)
-    print objects[0].extra_data
+    #objects = decode_directory('core')
+    #print len(objects)
+    #print objects[0].extra_data
+    #print decode_mod('mods/test.dfmod').modified_objects
+    print decode_all_mods()
     

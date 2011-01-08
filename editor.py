@@ -1,14 +1,44 @@
-import wx
+import wx, copy
+from encode import *
 from decode import *
 
 class ModEditorFrame(wx.Frame):
-    def __init__(self, parent):
+    def __init__(self, parent, core_dataset, mod):
         wx.Frame.__init__(self, parent, title="Mod Editor", size=(800, 600))
+        
+        self.parent = parent
+        
+        self.core_objects = core_dataset.objects
+        dataset = copy.deepcopy(core_dataset)
+        dataset.apply_mod_for_editing(mod)
+        self.objects = dataset.objects
+        
+        self.path = mod.path
+        
+        self.core_object_lookup = {}
+        for object in self.core_objects:
+            self.core_object_lookup[object.type+object.name] = object
+        
+        headers = {}
+        for o in self.objects:
+            if o.type not in headers:
+                headers[o.type] = []
+            headers[o.type].append(o)
+        
+        
+        self.nb = wx.Notebook(self, -1, wx.Point(0,0), wx.Size(0,0), wx.NB_MULTILINE)
+        
+        for header in headers.keys():
+            self.nb.AddPage(ObjectTypePanel(self.nb, header, headers[header], self), header)
         
         self.filemenu= wx.Menu()
         menu_save = self.filemenu.Append(wx.ID_SAVE, "&Save","")
-        menu_save_exit = self.filemenu.Append(wx.ID_OPEN, "Save and &exit","")
+        menu_save_and_exit = self.filemenu.Append(wx.ID_OPEN, "Save and &exit","")
         menu_exit = self.filemenu.Append(wx.ID_EXIT, "Exit without saving","")
+        
+        self.Bind(wx.EVT_MENU, self.save, menu_save)
+        self.Bind(wx.EVT_MENU, self.exit, menu_exit)
+        self.Bind(wx.EVT_MENU, self.save_and_exit, menu_save_and_exit)
         
         self.objectmenu= wx.Menu()
         menu_add = self.objectmenu.Append(wx.ID_ADD, "&Add object","")
@@ -30,8 +60,12 @@ class ModEditorFrame(wx.Frame):
         dialog = wx.TextEntryDialog(self, 'Enter name for new object', 'Add object', '')
         if dialog.ShowModal() == wx.ID_OK:
             ref_object = panel.objects[0]
-            object = Object(ref_object.file_name, ref_object.type, ref_object.root_type, dialog.GetValue())
+            new_fname = ref_object.file_name
+            if 'dfmm' not in new_fname:
+                new_fname = new_fname.split('.')[0] + '_dfmm.txt'
+            object = Object(new_fname, ref_object.type, ref_object.root_type, dialog.GetValue())
             object.added = True
+            self.objects.append(object)
             panel.objects.append(object)
             panel.listbox.Append(object.name)
             i = len(panel.objects) - 1
@@ -46,7 +80,8 @@ class ModEditorFrame(wx.Frame):
         i = panel.listbox.GetSelections()[0]
         object = panel.objects[i]
         if object.added:
-            del panel.objects[i]
+            self.objects.remove(object)
+            panel.objects.remove(object)
             panel.listbox.Delete(i)
         else:
             object.modified = False
@@ -69,6 +104,17 @@ class ModEditorFrame(wx.Frame):
         panel.update_listbox(i)
         panel.listbox_clicked(None)
         
+    def save(self, event):
+        encode_mod(Mod('Test', self.path, self.objects), self.path)
+        
+    def exit(self, event):
+        if self.parent:
+            self.parent.update_mod_list()
+        self.Close(True)
+        
+    def save_and_exit(self, event):
+        self.save(None)
+        self.exit(None)
 
 
 
@@ -100,8 +146,9 @@ class ObjectTypePanel(wx.Panel):
         
         objects.sort(key=lambda o: o.name)
         
-        for o in objects:
+        for i, o in enumerate(objects):
             self.listbox.Append(o.name)
+            self.update_listbox(i)
         
         self.Show(True)
 
@@ -115,7 +162,7 @@ class ObjectTypePanel(wx.Panel):
         i = self.listbox.GetSelections()[0]
         object = self.objects[i]
         if object.added or object.deleted:
-            pass
+            return
         object.extra_data = self.editor.GetString(0, self.editor.GetLastPosition())
         core_object = self.root_frame.core_object_lookup[object.type+object.name]
         if core_object.extra_data != object.extra_data:
@@ -141,29 +188,17 @@ class ObjectTypePanel(wx.Panel):
    
 
         
+if __name__ == '__main__':
         
         
-app = wx.App(False)
-frame = ModEditorFrame(None)
+    app = wx.App(False)
+    
+    core_dataset = decode_core()
+    
+    frame = ModEditorFrame(None, core_dataset, decode_mod('mods/test.dfmod'))
+    
+    
 
-
-frame.core_objects = decode_directory('core')
-frame.core_object_lookup = {}
-for object in frame.core_objects:
-    frame.core_object_lookup[object.type+object.name] = object
-frame.objects = decode_directory('core')
-
-headers = {}
-for o in frame.objects:
-    if o.type not in headers:
-        headers[o.type] = []
-    headers[o.type].append(o)
-
-
-frame.nb = wx.Notebook(frame, -1, wx.Point(0,0), wx.Size(0,0), wx.NB_MULTILINE)
-
-for header in headers.keys():
-    frame.nb.AddPage(ObjectTypePanel(frame.nb, header, headers[header], frame), header)
-frame.Show()
-app.MainLoop()
+    frame.Show()
+    app.MainLoop()
 
