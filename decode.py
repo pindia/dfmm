@@ -48,6 +48,8 @@ def decode_core():
     return decode_directory('core')
     
 def get_mod_list():
+    if not os.path.exists('mods'):
+        os.mkdir('mods')
     return [f for f in os.listdir('mods') if f.endswith('.dfmod')]
     
 def decode_mod(path, core_dataset):
