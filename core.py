@@ -1,4 +1,5 @@
 import copy
+import merge
 
 class DataSet(object):
     def __init__(self, objects):
@@ -20,20 +21,31 @@ class DataSet(object):
         current_object = self.get_object(object.type, object.name)
         if not current_object.modified:
             self.objects.remove(current_object)
+            return True
+        else:
+            return False
     
-    def modify_object(self, object):
-        current_object = self.get_object(object.type, object.name)
-        if not current_object.modified:
-            current_object.extra_data = object.extra_data
-            current_object.modified = True
             
-    def apply_mod(self, mod):
+    def apply_mod(self, mod, core_dataset):
         for object in mod.added_objects:
             self.add_object(object)
         for object in mod.modified_objects:
-            self.modify_object(object)
+            current_object = self.get_object(object.type, object.name)
+            core_object = core_dataset.get_object(object.type, object.name)
+            if not current_object.modified:
+                current_object.extra_data = object.extra_data
+                current_object.modified = True
+            else:
+                result = merge.merge_data(core_object.extra_data, current_object.extra_data, object.extra_data)
+                if result:
+                    current_object.extra_data = result
+                    current_object.modified = True
+                    print 'Merged edit to [%s:%s] from mod %s with prior edits' % (object.type, object.name, mod.name)
+                else:
+                    print 'Failed to apply edit to [%s:%s] from mod "%s" due to prior edit' % (object.type, object.name, mod.name)
         for object in mod.deleted_objects:
-            self.delete_object(object)
+            if not self.delete_object(object):
+                print 'Failed to apply deletion of [%s:%s] from mod "%s" due to prior edit' % (object.type, object.name, mod.name)
             
     def apply_mod_for_editing(self, mod):
         for object in mod.objects:

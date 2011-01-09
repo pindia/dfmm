@@ -110,10 +110,10 @@ class ModEditorFrame(wx.Frame):
         
     def save(self, event):
         encode_mod(Mod(self.mod.name, self.mod.path, self.objects))
+        if self.parent:
+            self.parent.reload_mods()
         
     def exit(self, event):
-        if self.parent:
-            self.parent.update_mod_list()
         self.Close(True)
         
     def save_and_exit(self, event):
