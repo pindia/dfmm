@@ -7,7 +7,7 @@ TYPES = ['ITEM_FOOD','ITEM_SHIELD','SYMBOL','ITEM_TRAPCOMP','ENTITY',
          'COLOR','ITEM_SHOES','SHAPE','ITEM_AMMO','ITEM_INSTRUMENT','ITEM_GLOVES',
          'TRANSLATION','BODY','ITEM_ARMOR','ITEM_TOY','COLOR_PATTERN','MATERIAL_TEMPLATE',
          'ITEM_HELM','BODY_DETAIL_PLAN','PLANT','ITEM_WEAPON','ITEM_SIEGEAMMO','INORGANIC',
-         'CREATURE_VARIATION','CREATURE']
+         'CREATURE_VARIATION','CREATURE','ITEM_TOOL']
 
 ONLY_IN_SPECIFIC_TYPES = {'BODY':'BODY',
                           'CREATURE':'CREATURE',
@@ -48,8 +48,6 @@ def decode_core():
     return decode_directory('core')
     
 def get_mod_list():
-    if not os.path.exists('mods'):
-        os.mkdir('mods')
     return [f for f in os.listdir('mods') if f.endswith('.dfmod')]
     
 def decode_mod(path, core_dataset):

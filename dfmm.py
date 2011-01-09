@@ -38,6 +38,9 @@ class MainFrame(wx.Frame):
                 dialog = wx.MessageDialog(self, 'Please restore the raw files to their unmodified state and relaunch DFMM. (Backup your changes to another directory for later import)', style=wx.OK)
                 dialog.ShowModal()
                 sys.exit(0)
+                
+        if not os.path.exists('mods'):
+            os.mkdir('mods')
         
         self.core_dataset = decode_core()
         
@@ -56,7 +59,7 @@ class MainFrame(wx.Frame):
         
         self.listbox.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.mod_context_menu)
         
-        self.mod_db = shelve.open(os.path.join('mods','mods.db'), writeback=True)
+        self.mod_db = shelve.open(os.path.join('mods','mods.db'), 'c', writeback=True)
 
         
         self.reload_mods()
