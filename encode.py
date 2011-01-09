@@ -1,4 +1,5 @@
 from core import *
+import merge
 import os
 
 def encode_object(o):
@@ -16,12 +17,35 @@ def encode_objects(objects, targetpath):
         f.write('[OBJECT:%s]\n\n' % objects[0].root_type)
         f.write(''.join(map(encode_object, objects)))
         f.close()
+        
+def encode_to_directory(objects, targetpath):
+    files = {}
+    for object in objects: # Categorize objects into files
+        if object.file_name not in files:
+            files[object.file_name] = []
+        files[object.file_name].append(object)
+    modified_files = {}
+    for fname, objects in files.items(): # Only bother saving modified files
+        if True in [o.added or o.modified or o.deleted for o in objects]:
+            modified_files[fname] = objects
+    for fname, objects in modified_files.items():
+        encode_objects(objects, targetpath)
+        
 
-def encode_mod(mod):
+def object_to_dfmm_command(object, core_dataset):
+    id = '%s|%s|%s|%s' % (object.file_name, object.root_type, object.type, object.name)
+    if object.added:
+        return 'DFMM|ADD|%s|%s' % (id, object.extra_data)
+    if object.modified:
+        return 'DFMM|MODIFY|%s|%s' % (id, merge.make_patch(core_dataset.get_object(object.type, object.name).extra_data, object.extra_data))
+    if object.deleted:
+        return 'DFMM|DELETE|%s|' % id
+
+def encode_mod(mod, core_dataset):
     f = open(mod.path, 'wt')
     f.write('!DFMM|NAME|%s\n' % mod.name)
     for object in mod.changed_objects:
-        f.write('!'+object.to_dfmm_command() + '\n')
+        f.write('!'+object_to_dfmm_command(object, core_dataset) + '\n')
     f.close()
     
     

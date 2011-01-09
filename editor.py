@@ -8,6 +8,7 @@ class ModEditorFrame(wx.Frame):
         
         self.parent = parent
         
+        self.core_dataset = core_dataset
         self.core_objects = core_dataset.objects
         dataset = copy.deepcopy(core_dataset)
         dataset.apply_mod_for_editing(mod)
@@ -109,7 +110,7 @@ class ModEditorFrame(wx.Frame):
         panel.listbox_clicked(None)
         
     def save(self, event):
-        encode_mod(Mod(self.mod.name, self.mod.path, self.objects))
+        encode_mod(Mod(self.mod.name, self.mod.path, self.objects), self.core_dataset)
         if self.parent:
             self.parent.reload_mods()
         
@@ -203,7 +204,7 @@ if __name__ == '__main__':
     
     core_dataset = decode_core()
     
-    frame = ModEditorFrame(None, core_dataset, decode_mod('mods/test.dfmod'))
+    frame = ModEditorFrame(None, core_dataset, decode_mod('mods/test.dfmod', core_dataset))
     
     
 

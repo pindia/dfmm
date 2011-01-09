@@ -1,4 +1,5 @@
 from core import *
+import merge
 import re, os
 
 TYPES = ['ITEM_FOOD','ITEM_SHIELD','SYMBOL','ITEM_TRAPCOMP','ENTITY',
@@ -49,7 +50,7 @@ def decode_core():
 def get_mod_list():
     return [f for f in os.listdir('mods') if f.endswith('.dfmod')]
     
-def decode_mod(path):
+def decode_mod(path, core_dataset):
     f = open(path, 'rt')
     commands = f.read().split('!')[1:]
     for command in commands:
@@ -57,12 +58,13 @@ def decode_mod(path):
         if elems[1] == 'NAME':
             mod = Mod(elems[2], path, [])
             continue
-        dfmm, keyword, filename, root_type, type, name, data = elems
+        dfmm, keyword, filename, root_type, type, name, patch_data = elems
         o = Object(filename, type, root_type, name)
-        o.extra_data = data
         if keyword == 'ADD':
+            o.extra_data = patch_data
             o.added = True
         elif keyword == 'MODIFY':
+            o.extra_data = merge.apply_patch_text(core_dataset.get_object(o.type, o.name).extra_data, patch_data)[0]
             o.modified = True
         elif keyword == 'DELETE':
             o.deleted = True
@@ -71,8 +73,8 @@ def decode_mod(path):
         mod.objects.append(o)
     return mod
         
-def decode_all_mods():
-    return [decode_mod(os.path.join('mods', p)) for p in get_mod_list()]
+def decode_all_mods(core_dataset):
+    return [decode_mod(os.path.join('mods', p), core_dataset) for p in get_mod_list()]
         
    
 if __name__ == '__main__': 

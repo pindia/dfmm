@@ -7,7 +7,7 @@ from editor import *
 class MainFrame(wx.Frame):
     
     def reload_mods(self):
-        self.mods = decode_all_mods()
+        self.mods = decode_all_mods(self.core_dataset)
         self.update_mod_list()
     
     def update_mod_list(self):
@@ -65,11 +65,13 @@ class MainFrame(wx.Frame):
         
         self.Bind(wx.EVT_MENU, self.install, menu_install)
         self.Bind(wx.EVT_MENU, self.new_mod, menu_new)
+        self.Bind(wx.EVT_MENU, self.exit, menu_exit)
 
         self.importmenu = wx.Menu()
         menu_import_dfmod = self.importmenu.Append(wx.ID_ANY, "Import .dfmod","")
         menu_import_files = self.importmenu.Append(wx.ID_ANY, "Import from directory","")
         
+        self.Bind(wx.EVT_MENU, self.import_dfmod, menu_import_dfmod)
         self.Bind(wx.EVT_MENU, self.import_files, menu_import_files)
         
         OPTIONS = [['_merge_changes','Merge changes'], ['_partial_merge','Allow partial merge'], ['_delete_override','Delete overrides edit']]
@@ -90,7 +92,7 @@ class MainFrame(wx.Frame):
         menuBar = wx.MenuBar()
         menuBar.Append(self.filemenu,"&File")
         menuBar.Append(self.importmenu,"&Import")
-        #menuBar.Append(self.optionsmenu,"&Options")
+        menuBar.Append(self.optionsmenu,"&Options")
         self.SetMenuBar(menuBar)
         
     def mod_context_menu(self, event):
@@ -105,12 +107,17 @@ class MainFrame(wx.Frame):
         menu_up = menu.Append(wx.ID_ANY, "Move up","")
         menu_down = menu.Append(wx.ID_ANY, "Move down","")
         menu.AppendSeparator()
+        menu_export_dfmod = menu.Append(wx.ID_ANY, "Export .dfmod","")
+        menu_export_files = menu.Append(wx.ID_ANY, "Export to directory","")
+        menu.AppendSeparator()
         menu_edit = menu.Append(wx.ID_ANY, "&Edit mod","")
         menu_delete = menu.Append(wx.ID_ANY, "&Delete mod","")
         
         self.Bind(wx.EVT_MENU, self.enable_mod, menu_enable)
         self.Bind(wx.EVT_MENU, self.move_mod_up, menu_up)
         self.Bind(wx.EVT_MENU, self.move_mod_down, menu_down)
+        self.Bind(wx.EVT_MENU, self.export_dfmod, menu_export_dfmod)
+        self.Bind(wx.EVT_MENU, self.export_files, menu_export_files)
         self.Bind(wx.EVT_MENU, self.edit_mod, menu_edit)
         self.Bind(wx.EVT_MENU, self.delete_mod, menu_delete)
         
@@ -147,7 +154,7 @@ class MainFrame(wx.Frame):
         if dialog.ShowModal() == wx.ID_OK:
             name = dialog.GetValue()
             fname = name.lower().replace(' ','-') + '.dfmod'
-            encode_mod(Mod(name, os.path.join('mods', fname), []))
+            encode_mod(Mod(name, os.path.join('mods', fname), []), self.core_dataset)
         self.reload_mods()
         
     def edit_mod(self, event):
@@ -165,6 +172,34 @@ class MainFrame(wx.Frame):
             os.remove(mod.path)
         self.reload_mods()
         
+    def export_dfmod(self, event):
+        i = self.listbox.GetFirstSelected()
+        mod = self.mods[i]
+        dialog = wx.FileDialog(self, 'Select File', wildcard='*.dfmod', style=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
+        if dialog.ShowModal() == wx.ID_OK:
+            path = dialog.GetPath()
+            new_mod = copy.deepcopy(mod)
+            new_mod.path = path
+            encode_mod(new_mod, self.core_dataset)
+            
+    def export_files(self, event):
+        dialog = wx.DirDialog(self, 'Select directory')
+        i = self.listbox.GetFirstSelected()
+        mod = self.mods[i]
+        if dialog.ShowModal() == wx.ID_OK:
+            path = dialog.GetPath()
+            encode_to_directory(mod.objects, path)
+        
+    def import_dfmod(self, event):
+        dialog = wx.FileDialog(self, 'Select File', wildcard='*.dfmod')
+        if dialog.ShowModal() == wx.ID_OK:
+            path = dialog.GetPath()
+            mod = decode_mod(path, self.core_dataset)
+            fname = mod.name.lower().replace(' ','-') + '.dfmod'
+            mod.path = os.path.join('mods', fname)
+            encode_mod(mod, self.core_dataset)
+        self.reload_mods()
+        
     def import_files(self, event):
         dialog = wx.DirDialog(self, 'Select directory', style=wx.DD_DIR_MUST_EXIST)
         if dialog.ShowModal() == wx.ID_OK:
@@ -175,10 +210,10 @@ class MainFrame(wx.Frame):
                 fname = name.lower().replace(' ','-') + '.dfmod'
                 mod_dataset = decode_directory(path)
                 mod = Mod(name, os.path.join('mods', fname), self.core_dataset.difference(mod_dataset))
-                encode_mod(mod)
+                encode_mod(mod, self.core_dataset)
             #fname = name.lower().replace(' ','-') + '.dfmod'
-            #encode_mod(Mod(name, os.path.join('mods', fname), []))
-        self.update_mod_list()
+        self.reload_mods()
+    
         
     def install(self, event):
         print 'Installing mods'
@@ -186,7 +221,10 @@ class MainFrame(wx.Frame):
         dataset = copy.deepcopy(self.core_dataset)
         for mod in self.mods:
             if self.mod_db[mod.name]['enabled']:
-                dataset.apply_mod(mod, self.core_dataset)
+                dataset.apply_mod(mod, self.core_dataset,
+                                    merge_changes=self.mod_db['_merge_changes'],
+                                    partial_merge=self.mod_db['_partial_merge'],
+                                    delete_override=self.mod_db['_delete_override'])
         path = os.path.join('..','raw','objects')
         current_files = os.listdir(path)
         for f in current_files:
@@ -194,10 +232,13 @@ class MainFrame(wx.Frame):
         encode_objects(dataset.objects, path)
         print 'Install complete'
         
+    def exit(self, event):
+        self.Close(True)
+        
     def toggle_option(self, option):
         def perform_toggle(event):
             self.mod_db[option] = not self.mod_db[option]
-            self.options_menu[option].Toggle()
+            self.options_menu[option].Check(self.mod_db[option])
             self.mod_db.sync()
         return perform_toggle
         

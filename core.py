@@ -17,34 +17,45 @@ class DataSet(object):
     def add_object(self, object):
         self.objects.append(object)
         
-    def delete_object(self, object):
-        current_object = self.get_object(object.type, object.name)
-        if not current_object.modified:
-            self.objects.remove(current_object)
-            return True
-        else:
-            return False
+
     
             
-    def apply_mod(self, mod, core_dataset):
+    def apply_mod(self, mod, core_dataset, merge_changes=True, partial_merge=False, delete_override=False):
         for object in mod.added_objects:
             self.add_object(object)
         for object in mod.modified_objects:
             current_object = self.get_object(object.type, object.name)
             core_object = core_dataset.get_object(object.type, object.name)
+            if current_object.deleted:
+                print 'Failed to apply edits to [%s:%s] from mod %s due to prior deletion' % (object.type, object.name, mod.name)
+                continue
             if not current_object.modified:
                 current_object.extra_data = object.extra_data
                 current_object.modified = True
-            else:
+            elif merge_changes:
                 result = merge.merge_data(core_object.extra_data, current_object.extra_data, object.extra_data)
-                if result:
-                    current_object.extra_data = result
+                if result[1]:
+                    current_object.extra_data = result[0]
                     current_object.modified = True
                     print 'Merged edit to [%s:%s] from mod %s with prior edits' % (object.type, object.name, mod.name)
                 else:
-                    print 'Failed to apply edit to [%s:%s] from mod "%s" due to prior edit' % (object.type, object.name, mod.name)
+                    if partial_merge:
+                        current_object.extra_data = result[0]
+                        current_object.modified = True
+                        print 'Merged edit to [%s:%s] from mod %s with prior edits (Note: merge was partial)' % (object.type, object.name, mod.name)
+                    print 'Failed to merge edit to [%s:%s] from mod "%s" due to prior edit (Partial merges are disabled)' % (object.type, object.name, mod.name)
+            else:
+                print 'Failed to apply edits to [%s:%s] from mod %s due to prior edit (Merges are disabled)' % (object.type, object.name, mod.name)
         for object in mod.deleted_objects:
-            if not self.delete_object(object):
+            current_object = self.get_object(object.type, object.name)
+            if not current_object.modified:
+                current_object.deleted = True
+                self.objects.remove(current_object)
+            elif delete_override:
+                current_object.deleted = True
+                self.objects.remove(current_object)
+                print 'Applied deletion of [%s:%s] from mod "%s", overriding prior edit' % (object.type, object.name, mod.name)
+            else:
                 print 'Failed to apply deletion of [%s:%s] from mod "%s" due to prior edit' % (object.type, object.name, mod.name)
             
     def apply_mod_for_editing(self, mod):
@@ -130,12 +141,5 @@ class Object(object):
     def __hash__(self):
         return hash(self.type + self.name)
         
-    def to_dfmm_command(self):
-        id = '%s|%s|%s|%s' % (self.file_name, self.root_type, self.type, self.name)
-        if self.added:
-            return 'DFMM|ADD|%s|%s' % (id, self.extra_data)
-        if self.modified:
-            return 'DFMM|MODIFY|%s|%s' % (id, self.extra_data)
-        if self.deleted:
-            return 'DFMM|DELETE|%s|' % id
+
 
