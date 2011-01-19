@@ -3,7 +3,7 @@ import merge
 import re, os
 
 TYPES = ['ITEM_FOOD','ITEM_SHIELD','SYMBOL','ITEM_TRAPCOMP','ENTITY',
-         'ITEM_PANTS','TISSUE_TEMPLATE','REACTION','WORD','BUILDING_WORKSHOP',
+         'ITEM_PANTS','TISSUE_TEMPLATE','REACTION','WORD','BUILDING_WORKSHOP','BUILDING_FURNACE',
          'COLOR','ITEM_SHOES','SHAPE','ITEM_AMMO','ITEM_INSTRUMENT','ITEM_GLOVES',
          'TRANSLATION','BODY','ITEM_ARMOR','ITEM_TOY','COLOR_PATTERN','MATERIAL_TEMPLATE',
          'ITEM_HELM','BODY_DETAIL_PLAN','PLANT','ITEM_WEAPON','ITEM_SIEGEAMMO','INORGANIC',
@@ -20,7 +20,7 @@ def decode_file(path):
     ''' Parses a raw file and returns a list of the objects in it '''
     fname = os.path.split(path)[-1]
     objects = []
-    data = open(path, 'rt').read()
+    data = open(path, 'rt').read().decode('cp437')
     for raw_tag in re.findall(r'\[[^\[\]]+\]', data):
         tag_data = raw_tag.strip('[]').split(':')
         tag_name = tag_data[0]
@@ -33,7 +33,13 @@ def decode_file(path):
             current_object = Object(fname, current_type, current_root_type, current_name)
             objects.append(current_object)
         else: # Unrecognized tag; add it to the object's extra data
-            current_object.add_data(raw_tag+'\n')
+            try:
+                current_object.add_data(raw_tag+'\n')
+            except:
+                print 'Debug information:'
+                print 'File name: %s' % fname
+                print 'Tag: %r' % tag_data
+                raise
     return objects
    
 def decode_directory(path):
@@ -52,7 +58,7 @@ def get_mod_list():
     
 def decode_mod(path, core_dataset):
     f = open(path, 'rt')
-    commands = f.read().split('!')[1:]
+    commands = f.read().decode('cp437').split('!DFMM')[1:]
     for command in commands:
         elems = command.strip().split('|')
         if elems[1] == 'NAME':

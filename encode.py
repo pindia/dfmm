@@ -3,7 +3,7 @@ import merge
 import os
 
 def encode_object(o):
-    return '[%s:%s]\n' % (o.type, o.name) + o.extra_data + '\n\n'
+    return ('[%s:%s]\n' % (o.type, o.name) + o.extra_data + '\n\n').encode('cp437')
 
 def encode_objects(objects, targetpath):
     files = {}
@@ -45,7 +45,13 @@ def encode_mod(mod, core_dataset):
     f = open(mod.path, 'wt')
     f.write('!DFMM|NAME|%s\n' % mod.name)
     for object in mod.changed_objects:
-        f.write('!'+object_to_dfmm_command(object, core_dataset) + '\n')
+        try:
+            f.write('!'+object_to_dfmm_command(object, core_dataset).encode('cp437') + '\n')
+        except UnicodeDecodeError:
+            print object.type
+            print object.name
+            print object.extra_data
+            raise
     f.close()
     
     

@@ -93,7 +93,7 @@ class DataSet(object):
 class Mod(object):
     ''' A mod object stores only the objects it changes..'''
     def __init__(self, name, path, objects):
-        self.name = name
+        self.name = name.encode('utf-8') # Make sure name is a string to be usable in keyss
         self.path = path
         self.objects = objects
         

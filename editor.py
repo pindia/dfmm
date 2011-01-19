@@ -204,7 +204,7 @@ if __name__ == '__main__':
     
     core_dataset = decode_core()
     
-    frame = ModEditorFrame(None, core_dataset, decode_mod('mods/test.dfmod', core_dataset))
+    frame = ModEditorFrame(None, core_dataset, decode_mod('mods/fortress-defense.dfmod', core_dataset))
     
     
 
