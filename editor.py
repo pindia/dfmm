@@ -1,4 +1,5 @@
 import wx, copy
+import merge
 from encode import *
 from decode import *
 
@@ -29,7 +30,7 @@ class ModEditorFrame(wx.Frame):
         
         self.nb = wx.Notebook(self, -1, wx.Point(0,0), wx.Size(0,0), wx.NB_MULTILINE)
         
-        for header in headers.keys():
+        for header in sorted(headers.keys()):
             changed_objects = len([o for o in mod.changed_objects if o.type == header])
             text = header
             if changed_objects != 0:
@@ -136,8 +137,9 @@ class ObjectTypePanel(wx.Panel):
         self.listbox = wx.ListBox(self, pos=(0,0), size=(-1, 400))
         self.listbox.Bind(wx.EVT_LISTBOX, self.listbox_clicked)
         
-        self.editor = wx.TextCtrl(self, style=wx.TE_MULTILINE, size=(-1, 400))
+        self.editor = wx.TextCtrl(self, style=wx.TE_MULTILINE|wx.TE_RICH2, size=(-1, 400))
         self.editor.Bind(wx.EVT_TEXT, self.data_modified)
+        self.suppress_modified = False
         
         
         
@@ -161,11 +163,41 @@ class ObjectTypePanel(wx.Panel):
 
     def listbox_clicked(self, event):
         i = self.listbox.GetSelections()[0]
-        self.editor.ChangeValue(self.objects[i].extra_data)
+        object = self.objects[i]
+        
+
+        
+        if object.modified and not object.added and not object.deleted:
+            self.suppress_modified = True
+            self.editor.Clear()
+            # Highlight the changes if applicable
+            core_object = self.root_frame.core_object_lookup[object.type+object.name]
+            i = 0
+            for op, data in merge.get_diffs(core_object.extra_data, object.extra_data):
+                if op == 1: # Added
+                    #text.append('*%s*' % data)
+                    #self.editor.SetStyle(i, i+len(data), wx.TextAttr(colBack=wx.Colour(0,255,0)))
+                    self.editor.SetDefaultStyle(wx.TextAttr(colBack=wx.Colour(0,255,0)))
+                    self.editor.AppendText(data)
+                elif op == -1: # Deleted
+                    pass
+                    #self.editor.SetDefaultStyle(wx.TextAttr(colBack=wx.Colour(255,0,0)))
+                    #self.editor.AppendText(data)
+                else: #Unmodified
+                    self.editor.SetDefaultStyle(wx.TextAttr(colBack=wx.Colour(255,255,255)))
+                    self.editor.AppendText(data)
+                i += len(data)
+            self.suppress_modified = False
+        else:
+            self.editor.ChangeValue(object.extra_data)
+
+        
         #self.editor.WriteText()
         self.editor.ShowPosition(0)
         
     def data_modified(self, event):
+        if self.suppress_modified: 
+            return
         i = self.listbox.GetSelections()[0]
         object = self.objects[i]
         if object.deleted:
@@ -204,7 +236,7 @@ if __name__ == '__main__':
     
     core_dataset = decode_core()
     
-    frame = ModEditorFrame(None, core_dataset, decode_mod('mods/fortress-defense.dfmod', core_dataset))
+    frame = ModEditorFrame(None, core_dataset, decode_mod('mods/test.dfmod', core_dataset))
     
     
 

@@ -21,6 +21,12 @@ def merge_data(base, current, new):
         return results[0], False # At least one patch failed, abort
     return results[0], True
     
+def get_diffs(base, data):
+    differ = diff_match_patch()
+    diffs = differ.diff_main(base, data)
+    differ.diff_cleanupSemantic(diffs)
+    return diffs
+    
 if __name__ == '__main__':
         
     base = '''
@@ -40,4 +46,13 @@ if __name__ == '__main__':
     [ADD2]
     [TAG3]'''
     
-    print merge_data(base, current, new)
+    differ = diff_match_patch()
+    patches = differ.diff_main(base.strip(), new.strip())
+    
+    for op, data in patches:
+        print patch
+        print differ.match_main(current, patch, 0)
+        print
+        
+    
+    #print merge_data(base, current, new)
