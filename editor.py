@@ -9,6 +9,8 @@ class ModEditorFrame(wx.Frame):
         
         self.parent = parent
         
+        self.init_menu()
+        
         self.core_dataset = core_dataset
         self.core_objects = core_dataset.objects
         dataset = copy.deepcopy(core_dataset)
@@ -37,29 +39,46 @@ class ModEditorFrame(wx.Frame):
                 text += ' [%d]' % changed_objects
             self.nb.AddPage(ObjectTypePanel(self.nb, header, headers[header], self), text)
         
+    def init_menu(self):
+        
         self.filemenu= wx.Menu()
-        menu_save = self.filemenu.Append(wx.ID_SAVE, "&Save","")
-        menu_save_and_exit = self.filemenu.Append(wx.ID_OPEN, "Save and &exit","")
-        menu_exit = self.filemenu.Append(wx.ID_EXIT, "Exit without saving","")
+        menu_save = self.filemenu.Append(wx.ID_ANY, "&Save\tCtrl-S","")
+        menu_save_and_exit = self.filemenu.Append(wx.ID_ANY, "Save and &exit","")
+        menu_exit = self.filemenu.Append(wx.ID_ANY, "Exit without saving","")
         
         self.Bind(wx.EVT_MENU, self.save, menu_save)
         self.Bind(wx.EVT_MENU, self.exit, menu_exit)
         self.Bind(wx.EVT_MENU, self.save_and_exit, menu_save_and_exit)
         
         self.objectmenu= wx.Menu()
-        menu_add = self.objectmenu.Append(wx.ID_ADD, "&Add object","")
-        menu_delete = self.objectmenu.Append(wx.ID_DELETE, "&Delete object","")
-        menu_revert = self.objectmenu.Append(wx.ID_UNDO, "&Revert object","")
+        menu_add = self.objectmenu.Append(wx.ID_ANY, "&Add object\tCtrl-N","")
+        menu_delete = self.objectmenu.Append(wx.ID_ANY, "&Delete object","")
+        menu_revert = self.objectmenu.Append(wx.ID_ANY, "&Revert object","")
         
         self.Bind(wx.EVT_MENU, self.add_object, menu_add)
         self.Bind(wx.EVT_MENU, self.delete_object, menu_delete)
         self.Bind(wx.EVT_MENU, self.revert_object, menu_revert)
-
+        
+        self.viewmenu = wx.Menu()
+        self.menu_highlight = self.viewmenu.Append(wx.ID_ANY,"Highlight changes\tCtrl-H", kind=wx.ITEM_CHECK)
+        self.menu_highlight.Check(True)
+        self.menu_core = self.viewmenu.Append(wx.ID_ANY,"View core data\tCtrl-D", kind=wx.ITEM_CHECK)
+        self.Bind(wx.EVT_MENU, self.view_highlight, self.menu_highlight)
+        self.Bind(wx.EVT_MENU, self.view_core, self.menu_core)
         
         menuBar = wx.MenuBar()
         menuBar.Append(self.filemenu,"&File")
         menuBar.Append(self.objectmenu,"&Object")
+        menuBar.Append(self.viewmenu,"&View")
         self.SetMenuBar(menuBar)
+        
+    def view_highlight(self, event):
+        self.nb.GetCurrentPage().listbox_clicked(None)
+        
+    def view_core(self, event):
+        self.nb.GetCurrentPage().listbox_clicked(None)
+
+        
         
     def add_object(self, event):
         panel = self.nb.GetCurrentPage()
@@ -181,6 +200,11 @@ class ObjectTypePanel(wx.Panel):
         object = self.objects[i]
         
 
+        if self.root_frame.menu_core.IsChecked():
+            self.editor.SetBackgroundColour(wx.Colour(200,200,200))
+        else:
+            self.editor.SetBackgroundColour(wx.Colour(255,255,255))
+
         
         if object.modified and not object.added and not object.deleted:
             self.suppress_modified = True
@@ -190,16 +214,20 @@ class ObjectTypePanel(wx.Panel):
             i = 0
             for op, data in merge.get_diffs(core_object.extra_data, object.extra_data):
                 if op == 1: # Added
-                    #text.append('*%s*' % data)
-                    #self.editor.SetStyle(i, i+len(data), wx.TextAttr(colBack=wx.Colour(0,255,0)))
-                    self.editor.SetDefaultStyle(wx.TextAttr(colBack=wx.Colour(0,255,0)))
-                    self.editor.AppendText(data)
+                    if not self.root_frame.menu_core.IsChecked():
+                        if self.root_frame.menu_highlight.IsChecked():
+                            self.editor.SetDefaultStyle(wx.TextAttr(colBack=wx.Colour(0,255,0)))
+                        self.editor.AppendText(data)
                 elif op == -1: # Deleted
-                    pass
-                    #self.editor.SetDefaultStyle(wx.TextAttr(colBack=wx.Colour(255,0,0)))
-                    #self.editor.AppendText(data)
+                    if self.root_frame.menu_core.IsChecked():
+                        if self.root_frame.menu_highlight.IsChecked():
+                            self.editor.SetDefaultStyle(wx.TextAttr(colBack=wx.Colour(255,0,0)))
+                        self.editor.AppendText(data)
                 else: #Unmodified
-                    self.editor.SetDefaultStyle(wx.TextAttr(colBack=wx.Colour(255,255,255)))
+                    if self.root_frame.menu_core.IsChecked():
+                        self.editor.SetDefaultStyle(wx.TextAttr(colBack=wx.Colour(200,200,200)))
+                    else:
+                        self.editor.SetDefaultStyle(wx.TextAttr(colBack=wx.Colour(255,255,255)))
                     self.editor.AppendText(data)
                 i += len(data)
             self.suppress_modified = False
@@ -211,7 +239,7 @@ class ObjectTypePanel(wx.Panel):
         self.editor.ShowPosition(0)
         
     def data_modified(self, event):
-        if self.suppress_modified: 
+        if self.suppress_modified or self.root_frame.menu_core.IsChecked(): 
             return
         i = self.listbox.GetSelections()[0]
         object = self.objects[i]
