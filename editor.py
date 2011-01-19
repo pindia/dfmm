@@ -136,6 +136,7 @@ class ObjectTypePanel(wx.Panel):
         
         self.listbox = wx.ListBox(self, pos=(0,0), size=(-1, 400))
         self.listbox.Bind(wx.EVT_LISTBOX, self.listbox_clicked)
+        #self.listbox.Bind(wx.EVT_LISTBOX_DCLICK, self.object_context_menu)
         
         self.editor = wx.TextCtrl(self, style=wx.TE_MULTILINE|wx.TE_RICH2, size=(-1, 400))
         self.editor.Bind(wx.EVT_TEXT, self.data_modified)
@@ -160,6 +161,20 @@ class ObjectTypePanel(wx.Panel):
         self.listbox_clicked(None)
         
         self.Show(True)
+        
+    def object_context_menu(self, event):
+        
+        menu = wx.Menu()
+        menu_add = menu.Append(wx.ID_ANY, "Add object","")
+        menu_delete = menu.Append(wx.ID_ANY, "Delete object","")
+        menu_revert = menu.Append(wx.ID_ANY, "Revert object","")
+        
+        self.Bind(wx.EVT_MENU, self.root_frame.add_object, menu_add)
+        self.Bind(wx.EVT_MENU, self.root_frame.delete_object, menu_delete)
+        self.Bind(wx.EVT_MENU, self.root_frame.revert_object, menu_revert)
+
+        
+        self.PopupMenu(menu, event.GetPoint())
 
     def listbox_clicked(self, event):
         i = self.listbox.GetSelections()[0]
