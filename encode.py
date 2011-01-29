@@ -37,11 +37,17 @@ def object_to_dfmm_command(object, core_dataset):
     if object.added:
         return 'DFMM|ADD|%s|%s' % (id, object.extra_data)
     if object.modified:
-        return 'DFMM|MODIFY|%s|%s' % (id, merge.make_patch(core_dataset.get_object(object.type, object.name).extra_data, object.extra_data))
+        return 'DFMM|MODIFY|%s|%s' % (id, merge.make_patch(core_dataset.get_object(object.root_type, object.type, object.name).extra_data, object.extra_data))
     if object.deleted:
         return 'DFMM|DELETE|%s|' % id
 
-def encode_mod(mod, core_dataset):
+def encode_mod(mod, core_dataset, overwrite=False):
+    if os.path.exists(mod.path) and not overwrite: # Rename path to avoid overwrite
+        pat = '%s-%%d.dfmod' % mod.path.split('.')[0]
+        i = 0
+        while os.path.exists(pat % i):
+            i += 1
+        mod.path = pat % i
     f = open(mod.path, 'wt')
     f.write('!DFMM|NAME|%s\n' % mod.name)
     for object in mod.changed_objects:

@@ -14,7 +14,8 @@ ONLY_IN_SPECIFIC_TYPES = {'BODY':'BODY',
                           'BODY_DETAIL_PLAN':'BODY_DETAIL_PLAN',
                           'ENTITY':'ENTITY',
                           'COLOR':'DESCRIPTOR_COLOR',
-                          'TRANSLATION':'LANGUAGE'}
+                          'TRANSLATION':'LANGUAGE',
+                          'WORD':'LANGUAGE'}
 
 def decode_file(path):
     ''' Parses a raw file and returns a list of the objects in it '''
@@ -70,7 +71,11 @@ def decode_mod(path, core_dataset):
             o.extra_data = patch_data
             o.added = True
         elif keyword == 'MODIFY':
-            o.extra_data = merge.apply_patch_text(core_dataset.get_object(o.type, o.name).extra_data, patch_data)[0]
+            try:
+                o.extra_data = merge.apply_patch_text(core_dataset.get_object(o.root_type,o.type, o.name).extra_data, patch_data)[0]
+            except:
+                print 'Error decoding modification to object [%s:%s] in mod %s. Skipping.' % (o.type, o.name, path)
+                continue
             o.modified = True
         elif keyword == 'DELETE':
             o.deleted = True

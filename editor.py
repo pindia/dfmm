@@ -130,7 +130,7 @@ class ModEditorFrame(wx.Frame):
         panel.listbox_clicked(None)
         
     def save(self, event):
-        encode_mod(Mod(self.mod.name, self.mod.path, self.objects), self.core_dataset)
+        encode_mod(Mod(self.mod.name, self.mod.path, self.objects), self.core_dataset, overwrite=True)
         if self.parent:
             self.parent.reload_mods()
         

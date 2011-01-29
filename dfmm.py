@@ -2,6 +2,7 @@ import wx
 import shelve, sys, shutil
 from decode import *
 from editor import *
+from split import *
 
 
 class MainFrame(wx.Frame):
@@ -13,12 +14,12 @@ class MainFrame(wx.Frame):
     def update_mod_list(self):
         self.listbox.DeleteAllItems()
         for mod in self.mods:
-            if mod.name not in self.mod_db: # Make sure it's in the database
-                self.mod_db[mod.name] = {'enabled':True, 'index':0}
-        self.mods.sort(key=lambda m: self.mod_db[m.name]['index'])
+            if mod.path not in self.mod_db: # Make sure it's in the database
+                self.mod_db[mod.path] = {'enabled':True, 'index':0}
+        self.mods.sort(key=lambda m: self.mod_db[m.path]['index'])
         for i, mod in enumerate(self.mods):
-            self.listbox.Append((u'\u2713' if self.mod_db[mod.name]['enabled'] else ' ', mod.name, len(mod.added_objects), len(mod.modified_objects), len(mod.deleted_objects)))
-            self.mod_db[mod.name]['index'] = i
+            self.listbox.Append((u'\u2713' if self.mod_db[mod.path]['enabled'] else ' ', mod.name, len(mod.added_objects), len(mod.modified_objects), len(mod.deleted_objects)))
+            self.mod_db[mod.path]['index'] = i
         self.mod_db.sync()
 
     
@@ -57,6 +58,7 @@ class MainFrame(wx.Frame):
         self.listbox.SetColumnWidth(3, 70)
         self.listbox.SetColumnWidth(4, 70)
         
+        self.listbox.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.enable_mod)
         self.listbox.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.mod_context_menu)
         
         self.mod_db = shelve.open(os.path.join('mods','mods.db'), 'c', writeback=True)
@@ -67,9 +69,13 @@ class MainFrame(wx.Frame):
         
         self.filemenu = wx.Menu()
         menu_new = self.filemenu.Append(wx.ID_ANY, "&New mod","")
+        self.filemenu.AppendSeparator()
+        menu_merge = self.filemenu.Append(wx.ID_ANY, "&Merge mods","")
         menu_install = self.filemenu.Append(wx.ID_ANY, "&Install mods","")
+        self.filemenu.AppendSeparator()
         menu_exit = self.filemenu.Append(wx.ID_EXIT, "Exit","")
         
+        self.Bind(wx.EVT_MENU, self.merge, menu_merge)
         self.Bind(wx.EVT_MENU, self.install, menu_install)
         self.Bind(wx.EVT_MENU, self.new_mod, menu_new)
         self.Bind(wx.EVT_MENU, self.exit, menu_exit)
@@ -102,13 +108,20 @@ class MainFrame(wx.Frame):
         menuBar.Append(self.optionsmenu,"&Options")
         self.SetMenuBar(menuBar)
         
+    def mod_clicked(self, event):
+        mod = self.mods[self.listbox.GetFirstSelected()]
+        print dir(event)
+        print event.GetX()
+        if event.GetX() < 30:
+            self.enable_mod(None)
+        
     def mod_context_menu(self, event):
         mod = self.mods[self.listbox.GetFirstSelected()]
         
         menu = wx.Menu()
         
         menu_enable = menu.Append(wx.ID_ANY, "Enable mod","", kind=wx.ITEM_CHECK)
-        if self.mod_db[mod.name]['enabled']:
+        if self.mod_db[mod.path]['enabled']:
             menu_enable.Check()
         menu.AppendSeparator()
         menu_up = menu.Append(wx.ID_ANY, "Move up","")
@@ -117,6 +130,7 @@ class MainFrame(wx.Frame):
         menu_export_dfmod = menu.Append(wx.ID_ANY, "Export .dfmod","")
         menu_export_files = menu.Append(wx.ID_ANY, "Export to directory","")
         menu.AppendSeparator()
+        menu_split = menu.Append(wx.ID_ANY, "&Split mod","")
         menu_edit = menu.Append(wx.ID_ANY, "&Edit mod","")
         menu_delete = menu.Append(wx.ID_ANY, "&Delete mod","")
         
@@ -125,6 +139,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.move_mod_down, menu_down)
         self.Bind(wx.EVT_MENU, self.export_dfmod, menu_export_dfmod)
         self.Bind(wx.EVT_MENU, self.export_files, menu_export_files)
+        self.Bind(wx.EVT_MENU, self.split_mod, menu_split)
         self.Bind(wx.EVT_MENU, self.edit_mod, menu_edit)
         self.Bind(wx.EVT_MENU, self.delete_mod, menu_delete)
         
@@ -132,18 +147,18 @@ class MainFrame(wx.Frame):
         
     def enable_mod(self, event):
         mod = self.mods[self.listbox.GetFirstSelected()]
-        self.mod_db[mod.name]['enabled'] = not self.mod_db[mod.name]['enabled']
+        self.mod_db[mod.path]['enabled'] = not self.mod_db[mod.path]['enabled']
         self.mod_db.sync()
         self.update_mod_list()
         
         
     def move_mod(self, dir):
         mod = self.mods[self.listbox.GetFirstSelected()]
-        i = self.mod_db[mod.name]['index']
+        i = self.mod_db[mod.path]['index']
         old_mods = [m for m in self.mods if self.mod_db[m.name]['index'] == i + dir]
         if old_mods:
             self.mod_db[old_mods[0].name]['index'] = i
-            self.mod_db[mod.name]['index'] = i + dir
+            self.mod_db[mod.path]['index'] = i + dir
             self.mod_db.sync()
             self.update_mod_list()
         else:
@@ -156,13 +171,38 @@ class MainFrame(wx.Frame):
         self.move_mod(+1)
 
         
-    def new_mod(self, event):
-        dialog = wx.TextEntryDialog(self, 'Enter name for new mod', 'New mod', '')
+    def info_dialog(self, message, title):
+        dialog = wx.MessageDialog(self, message, title, style=wx.OK)
+        dialog.ShowModal()
+        
+    def yes_no_dialog(self, message, title):
+        dialog = wx.MessageDialog(self, message, title, style=wx.YES|wx.NO)
+        return dialog.ShowModal() == wx.ID_YES
+        
+    def ok_cancel_dialog(self, message, title):
+        dialog = wx.MessageDialog(self, message, title, style=wx.OK|wx.CANCEL)
+        return dialog.ShowModal() == wx.ID_OK
+        
+    def text_entry_dialog(self, message, title, default=''):
+        dialog = wx.TextEntryDialog(self, message, title, default)
         if dialog.ShowModal() == wx.ID_OK:
-            name = dialog.GetValue()
+            return dialog.GetValue()
+        return None
+        
+    def new_mod(self, event):
+        name = self.text_entry_dialog('Enter name for new mod', 'New mod')
+        if name:
             fname = name.lower().replace(' ','-') + '.dfmod'
             encode_mod(Mod(name, os.path.join('mods', fname), []), self.core_dataset)
-        self.reload_mods()
+            self.reload_mods()
+            
+    def split_mod(self, event):
+        i = self.listbox.GetFirstSelected()
+        mod = self.mods[i]
+        frame = ModSplitterFrame(self, mod, self.core_dataset)
+        frame.Show()
+        frame.SetSize((800,600))
+
         
     def edit_mod(self, event):
         i = self.listbox.GetFirstSelected()
@@ -205,7 +245,7 @@ class MainFrame(wx.Frame):
             fname = mod.name.lower().replace(' ','-') + '.dfmod'
             mod.path = os.path.join('mods', fname)
             encode_mod(mod, self.core_dataset)
-        self.reload_mods()
+            self.reload_mods()
         
     def import_files(self, event):
         dialog = wx.DirDialog(self, 'Select directory', style=wx.DD_DIR_MUST_EXIST)
@@ -219,25 +259,43 @@ class MainFrame(wx.Frame):
                 mod = Mod(name, os.path.join('mods', fname), self.core_dataset.difference(mod_dataset))
                 encode_mod(mod, self.core_dataset)
             #fname = name.lower().replace(' ','-') + '.dfmod'
-        self.reload_mods()
+            self.reload_mods()
     
         
-    def install(self, event):
-        print 'Installing mods'
-        print '-' * 20
+    def merge_selected_mods(self):
         dataset = copy.deepcopy(self.core_dataset)
         for mod in self.mods:
-            if self.mod_db[mod.name]['enabled']:
+            if self.mod_db[mod.path]['enabled']:
                 dataset.apply_mod(mod, self.core_dataset,
                                     merge_changes=self.mod_db['_merge_changes'],
                                     partial_merge=self.mod_db['_partial_merge'],
                                     delete_override=self.mod_db['_delete_override'])
+        return dataset
+        
+    def install(self, event):
+        print 'Installing mods'
+        print '-' * 20
+        dataset = self.merge_selected_mods()
         path = os.path.join('..','raw','objects')
         current_files = os.listdir(path)
         for f in current_files:
             os.remove(os.path.join(path, f))
         encode_objects(dataset.objects, path)
         print 'Install complete'
+        
+    def merge(self, event):
+        name = self.text_entry_dialog(
+            'The enabled mods will be merged together to form one new mod.\nThe original mods will be kept.\nMerge settings will be followed the same way as installation.\n\nEnter name for new mod:',
+            'Merge mods')
+        if name:
+            fname = name.lower().replace(' ','-') + '.dfmod'
+            print 'Merging mods'
+            print '-' * 20
+            dataset = self.merge_selected_mods()
+            mod = Mod(name, os.path.join('mods', fname), self.core_dataset.difference(dataset))
+            encode_mod(mod, self.core_dataset)
+            print 'Merge complete'
+            self.reload_mods()
         
     def exit(self, event):
         self.Close(True)
@@ -249,10 +307,10 @@ class MainFrame(wx.Frame):
             self.mod_db.sync()
         return perform_toggle
         
-        
-app = wx.App(False)
-frame = MainFrame(None)
-
-frame.Show()
-app.MainLoop()
+if __name__ == '__main__':
+    app = wx.App(False)
+    frame = MainFrame(None)
+    
+    frame.Show()
+    app.MainLoop()
 

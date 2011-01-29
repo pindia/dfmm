@@ -6,10 +6,10 @@ class DataSet(object):
         self.objects = objects
         self.objects_map = {}
         for object in self.objects:
-            self.objects_map[object.type + object.name] = object
+            self.objects_map[object.root_type + object.type + object.name] = object
         
-    def get_object(self, type, name):
-        key = type + name
+    def get_object(self, root_type, type, name):
+        key = root_type + type + name
         if key not in self.objects_map:
             return None
         return self.objects_map[key]
@@ -24,8 +24,8 @@ class DataSet(object):
         for object in mod.added_objects:
             self.add_object(object)
         for object in mod.modified_objects:
-            current_object = self.get_object(object.type, object.name)
-            core_object = core_dataset.get_object(object.type, object.name)
+            current_object = self.get_object(object.root_type, object.type, object.name)
+            core_object = core_dataset.get_object(object.root_type, object.type, object.name)
             if current_object.deleted:
                 print 'Failed to apply edits to [%s:%s] from mod %s due to prior deletion' % (object.type, object.name, mod.name)
                 continue
@@ -47,7 +47,9 @@ class DataSet(object):
             else:
                 print 'Failed to apply edits to [%s:%s] from mod %s due to prior edit (Merges are disabled)' % (object.type, object.name, mod.name)
         for object in mod.deleted_objects:
-            current_object = self.get_object(object.type, object.name)
+            current_object = self.get_object(object.root_type, object.type, object.name)
+            if current_object not in self.objects: # Already deleted, don't worry about it
+                continue
             if not current_object.modified:
                 current_object.deleted = True
                 self.objects.remove(current_object)
@@ -60,7 +62,7 @@ class DataSet(object):
             
     def apply_mod_for_editing(self, mod):
         for object in mod.objects:
-            current_object = self.get_object(object.type, object.name)
+            current_object = self.get_object(object.root_type, object.type, object.name)
             if current_object:
                 self.objects.remove(current_object)
             self.objects.append(object)
@@ -82,7 +84,7 @@ class DataSet(object):
             o.deleted = True
             changes.append(o)
         for object in my_objects:
-            other_object = other.get_object(object.type, object.name)
+            other_object = other.get_object(object.root_type, object.type, object.name)
             if other_object and object.extra_data != other_object.extra_data:
                 o = copy.deepcopy(object)
                 o.modified = True
