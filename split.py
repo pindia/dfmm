@@ -161,7 +161,7 @@ class TestTreeCtrlPanel(wx.Panel):
             self.tree.SetItemImage(child, fldridx, wx.TreeItemIcon_Normal)
             self.tree.SetItemImage(child, fldropenidx, wx.TreeItemIcon_Expanded)
             if original:
-                for object in types[type]:
+                for object in sorted(types[type], key=lambda o: self.object_title(o)):
                     item = self.tree.AppendItem(child, self.object_title(object))
                     self.tree.SetPyData(item,{"type":"item",'object':object})
                     self.tree.SetItemImage(item, self.fileidx, wx.TreeItemIcon_Normal)

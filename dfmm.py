@@ -130,8 +130,8 @@ class MainFrame(wx.Frame):
         menu_export_dfmod = menu.Append(wx.ID_ANY, "Export .dfmod","")
         menu_export_files = menu.Append(wx.ID_ANY, "Export to directory","")
         menu.AppendSeparator()
-        menu_split = menu.Append(wx.ID_ANY, "&Split mod","")
         menu_edit = menu.Append(wx.ID_ANY, "&Edit mod","")
+        menu_split = menu.Append(wx.ID_ANY, "&Split mod","")
         menu_delete = menu.Append(wx.ID_ANY, "&Delete mod","")
         
         self.Bind(wx.EVT_MENU, self.enable_mod, menu_enable)
