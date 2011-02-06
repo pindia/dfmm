@@ -8,6 +8,21 @@ from split import *
 class MainFrame(wx.Frame):
     
     def reload_mods(self):
+        #self.mods = decode_all_mods(self.core_dataset)
+        self.mods = []
+        notified = False
+        for mod in get_mod_list():
+            path = os.path.join('mods', mod)
+            if not verify_mod_checksum(path, self.core_dataset):
+                if not notified:
+                    notified = True
+                    print 'Updating mods...'
+                    self.info_dialog('DFMM has detected a change in your core files. The patches defined in your mods will be re-rolled to improve efficiency. This may take several minutes. Watch the console window for possible notifications about changes that cannot be applied to the new files.', 'Core files changed')
+                print 'Processing mod "%s"...' % mod
+                mod = decode_mod(path, self.core_dataset)
+                encode_mod(mod, self.core_dataset, overwrite=True)
+        if notified:
+            print 'Done updating mods.'
         self.mods = decode_all_mods(self.core_dataset)
         self.update_mod_list()
     
@@ -54,7 +69,6 @@ class MainFrame(wx.Frame):
             os.mkdir('mods')
         
         self.core_dataset = decode_core()
-        print self.core_dataset.checksum()
         
         
         self.listbox = wx.ListCtrl(self, wx.ID_ANY, pos=(0,0), size=(-1, -1), style=wx.LC_REPORT|wx.SUNKEN_BORDER|wx.LC_HRULES|wx.LC_SINGLE_SEL)

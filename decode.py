@@ -56,34 +56,7 @@ def decode_file(path):
         object.extra_data = raw_data
         objects.append(object)
 
-    '''
-    
-    current_root_type = None
-    for raw_tag in re.findall(r'\[[^\[\]]+\]', data):
-        #tabs = raw_tag.count('\t')
-        #newline = '\n' in raw_tag
-        tag_data = raw_tag.strip('[]').split(':')
-        tag_name = tag_data[0]
-        tag_data = tag_data[1:]
-        if tag_name == 'OBJECT': # Set the root type
-            current_root_type = tag_data[0]
-        elif tag_name in TYPES and (tag_name not in ONLY_IN_SPECIFIC_TYPES or ONLY_IN_SPECIFIC_TYPES[tag_name] == current_root_type): # A new object is being defined
-            if not current_root_type:
-                raise Exception('No [OBJECT:<type>] tag found when parsing file %s' % path)
-            current_type = tag_name
-            current_name = tag_data[0]
-            current_object = Object(fname, current_type, current_root_type, current_name)
-            objects.append(current_object)
-        else: # Unrecognized tag; add it to the object's extra data
-            try:
-                current_object.add_data(raw_tag+ '\n')
-            except:
-                print 'Debug information:'
-                print 'File name: %s' % fname
-                print 'Tag name: %r' % tag_name
-                print 'Tag data: %r' % tag_data
-                raise
-    '''
+   
     return objects
    
 def decode_directory(path):
@@ -105,6 +78,13 @@ def verify_mod_checksum(path, core_dataset):
     for line in f:
         if '!DFMM' not in line:
             return False
+        dfmm, keyword, value = line.strip().split('|', 2)
+        if keyword == 'CHECKSUM':
+            try:
+                checksum = int(value)
+            except ValueError:
+                return False
+            return checksum == core_dataset.checksum()
     
 def decode_mod(path, core_dataset):
     f = open(path, 'rt')
@@ -113,6 +93,8 @@ def decode_mod(path, core_dataset):
         elems = command.strip().split('|', 6)
         if elems[1] == 'NAME':
             mod = Mod(elems[2], path, [])
+            continue
+        if elems[1] not in ['ADD', 'MODIFY', 'DELETE']:
             continue
         dfmm, keyword, filename, root_type, type, name, patch_data = elems
         o = Object(filename, type, root_type, name)
@@ -143,9 +125,10 @@ if __name__ == '__main__':
     #cProfile.run('decode_directory("core")','out.dat')
     #print len(objects)
     #print objects[0].extra_data
-    #core_dataset = decode_core()
+    core_dataset = decode_core()
     #print decode_mod('mods2/genesis.dfmod', core_dataset)
-    print decode_file('core/item_food.txt')
+    #print decode_file('core/item_food.txt')
+    print verify_mod_checksum('mods/genesis.dfmod', core_dataset)
     #print decode_all_mods()
     
     #defense_dataset = decode_directory('defense')

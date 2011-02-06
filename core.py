@@ -26,6 +26,8 @@ class DataSet(object):
         for object in mod.modified_objects:
             current_object = self.get_object(object.root_type, object.type, object.name)
             core_object = core_dataset.get_object(object.root_type, object.type, object.name)
+            if not current_object:
+                print 'Failed to apply edits to [%s:%s] from mod %s because the object does not exist' % (object.type, object.name, mod.name)
             if current_object.deleted:
                 print 'Failed to apply edits to [%s:%s] from mod %s due to prior deletion' % (object.type, object.name, mod.name)
                 continue
@@ -93,7 +95,7 @@ class DataSet(object):
         return changes
     
     def checksum(self):
-        s = sum([hash(o.extra_data) for o in self.objects])
+        s = sum([hash(o.name + o.extra_data) for o in self.objects])
         return hash(s)
 
 class Mod(object):
