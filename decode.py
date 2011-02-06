@@ -1,6 +1,6 @@
 from core import *
 import merge
-import re, os
+import re, os, itertools
 
 TYPES = ['ITEM_FOOD','ITEM_SHIELD','SYMBOL','ITEM_TRAPCOMP','ENTITY',
          'ITEM_PANTS','TISSUE_TEMPLATE','REACTION','WORD','BUILDING_WORKSHOP','BUILDING_FURNACE',
@@ -22,25 +22,68 @@ def decode_file(path):
     fname = os.path.split(path)[-1]
     objects = []
     data = open(path, 'rt').read().decode('cp437')
+    
+    pat = re.compile(r'\[([^\[\]]+):([^\[\]]+)\]')
+
+    match = pat.search(data)
+    if not match or match.group(1) != 'OBJECT':
+        raise Exception('No [OBJECT:<type>] tag found when parsing file %s' % path)
+    root_type = match.group(2)
+    
+    match2 = pat.search(data, pos=match.end())
+    if not match2:
+        raise Exception('No object definitions found in file %s' % path)
+    type = match2.group(1)
+
+
+    split = re.split(r'\[%s:([^\[\]]+)\]' % type, data)[1:]
+
+    comment = ''
+    for name, raw_data in itertools.izip(
+            itertools.islice(split, 0, None, 2),
+            itertools.islice(split, 1, None, 2)):
+        raw_data = raw_data.strip('\n') # Strip  extra newlines from start/end
+        
+        if comment:
+            raw_data = comment + '\n' + raw_data
+            comment = ''
+        before_last_line, sep, last_line = raw_data.rpartition('\n')
+        if sep and '[' not in last_line and ']' not in last_line:
+            # If the last line has no tags, assume it's a comment for the next one
+            comment = last_line
+            raw_data = before_last_line.strip('\n')
+        object = Object(fname, type, root_type, name)
+        object.extra_data = raw_data
+        objects.append(object)
+
+    '''
+    
+    current_root_type = None
     for raw_tag in re.findall(r'\[[^\[\]]+\]', data):
+        #tabs = raw_tag.count('\t')
+        #newline = '\n' in raw_tag
         tag_data = raw_tag.strip('[]').split(':')
         tag_name = tag_data[0]
         tag_data = tag_data[1:]
         if tag_name == 'OBJECT': # Set the root type
             current_root_type = tag_data[0]
         elif tag_name in TYPES and (tag_name not in ONLY_IN_SPECIFIC_TYPES or ONLY_IN_SPECIFIC_TYPES[tag_name] == current_root_type): # A new object is being defined
+            if not current_root_type:
+                raise Exception('No [OBJECT:<type>] tag found when parsing file %s' % path)
             current_type = tag_name
             current_name = tag_data[0]
             current_object = Object(fname, current_type, current_root_type, current_name)
             objects.append(current_object)
         else: # Unrecognized tag; add it to the object's extra data
             try:
-                current_object.add_data(raw_tag+'\n')
+                current_object.add_data(raw_tag+ '\n')
             except:
                 print 'Debug information:'
                 print 'File name: %s' % fname
-                print 'Tag: %r' % tag_data
+                print 'Tag name: %r' % tag_name
+                print 'Tag data: %r' % tag_data
                 raise
+    '''
     return objects
    
 def decode_directory(path):
@@ -57,11 +100,17 @@ def decode_core():
 def get_mod_list():
     return [f for f in os.listdir('mods') if f.endswith('.dfmod')]
     
+def verify_mod_checksum(path, core_dataset):
+    f = open(path, 'rt')
+    for line in f:
+        if '!DFMM' not in line:
+            return False
+    
 def decode_mod(path, core_dataset):
     f = open(path, 'rt')
     commands = f.read().decode('cp437').split('!DFMM')[1:]
     for command in commands:
-        elems = command.strip().split('|')
+        elems = command.strip().split('|', 6)
         if elems[1] == 'NAME':
             mod = Mod(elems[2], path, [])
             continue
@@ -90,12 +139,15 @@ def decode_all_mods(core_dataset):
    
 if __name__ == '__main__': 
     #objects =  decode_file('raw/objects/inorganic_stone_layer.txt')
-    print decode_directory('objects')
+    #import cProfile
+    #cProfile.run('decode_directory("core")','out.dat')
     #print len(objects)
     #print objects[0].extra_data
-    #print decode_mod('mods/higher-learning.dfmod').added_objects
-    #print decode_all_mods()
     #core_dataset = decode_core()
+    #print decode_mod('mods2/genesis.dfmod', core_dataset)
+    print decode_file('core/item_food.txt')
+    #print decode_all_mods()
+    
     #defense_dataset = decode_directory('defense')
     #print core_dataset.difference(defense_dataset)
     

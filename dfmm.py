@@ -1,5 +1,5 @@
 import wx
-import shelve, sys, shutil
+import shelve, sys, shutil, traceback
 from decode import *
 from editor import *
 from split import *
@@ -26,6 +26,16 @@ class MainFrame(wx.Frame):
     def __init__(self, parent):
         wx.Frame.__init__(self, parent, title="DF Mod Manager", size=(500, 300))
         
+        
+        def except_hook(type, value, tb):
+            dialog = wx.MessageDialog(self, ''.join(traceback.format_exception_only(type, value)) + '\n' + ''.join(traceback.format_tb(tb)),
+                                      'Fatal error', style=wx.OK|wx.ICON_ERROR)
+            dialog.ShowModal()
+            sys.exit(0)
+        
+        sys.excepthook = except_hook
+        
+        
         if not os.path.exists('core'):
             dialog = wx.MessageDialog(self, 'It appears that you are running DFMM for the first time. Are the files currently in your raws folder unmodified?',
                                   'Setup',style=wx.YES|wx.NO)
@@ -44,6 +54,7 @@ class MainFrame(wx.Frame):
             os.mkdir('mods')
         
         self.core_dataset = decode_core()
+        print self.core_dataset.checksum()
         
         
         self.listbox = wx.ListCtrl(self, wx.ID_ANY, pos=(0,0), size=(-1, -1), style=wx.LC_REPORT|wx.SUNKEN_BORDER|wx.LC_HRULES|wx.LC_SINGLE_SEL)
@@ -310,6 +321,7 @@ class MainFrame(wx.Frame):
 if __name__ == '__main__':
     app = wx.App(False)
     frame = MainFrame(None)
+    
     
     frame.Show()
     app.MainLoop()

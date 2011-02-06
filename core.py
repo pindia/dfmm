@@ -91,6 +91,10 @@ class DataSet(object):
                 o.extra_data = other_object.extra_data
                 changes.append(o)
         return changes
+    
+    def checksum(self):
+        s = sum([hash(o.extra_data) for o in self.objects])
+        return hash(s)
 
 class Mod(object):
     ''' A mod object stores only the objects it changes..'''
