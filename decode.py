@@ -103,7 +103,17 @@ def decode_mod(path, core_dataset):
             o.added = True
         elif keyword == 'MODIFY':
             try:
-                o.extra_data = merge.apply_patch_text(core_dataset.get_object(o.root_type,o.type, o.name).extra_data, patch_data)[0]
+                core_object = core_dataset.get_object(o.root_type,o.type, o.name)
+                if not core_object:
+                    print 'Error decoding modification to object [%s:%s] in mod %s: object does not exist. Skipping.' % (o.type, o.name, path)
+                    continue
+                else:
+                    results = merge.apply_patch_text(core_object.extra_data, patch_data)
+                    n = results[1].count(False)
+                    t = len(results[1])
+                    if n != 0:
+                        print 'Warning:  %d/%d modifications to object [%s:%s] in mod %s could not be applied and have been skipped.' % (n, t, o.type, o.name, path)
+                    o.extra_data = results[0]
             except:
                 print 'Error decoding modification to object [%s:%s] in mod %s. Skipping.' % (o.type, o.name, path)
                 continue

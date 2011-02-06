@@ -17,7 +17,7 @@ class MainFrame(wx.Frame):
                 if not notified:
                     notified = True
                     print 'Updating mods...'
-                    self.info_dialog('DFMM has detected a change in your core files. The patches defined in your mods will be re-rolled to improve efficiency. This may take several minutes. Watch the console window for possible notifications about changes that cannot be applied to the new files.', 'Core files changed')
+                    self.info_dialog('DFMM has detected a change in your core files. The patches defined in your mods will be re-rolled to improve efficiency. Depending on the number and size of your mods, this may take several minutes. Watch the console window for possible notifications about changes that cannot be applied to the new files.', 'Core files changed')
                 print 'Processing mod "%s"...' % mod
                 mod = decode_mod(path, self.core_dataset)
                 encode_mod(mod, self.core_dataset, overwrite=True)
