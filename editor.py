@@ -157,7 +157,7 @@ class ObjectTypePanel(wx.Panel):
         self.listbox.Bind(wx.EVT_LISTBOX, self.listbox_clicked)
         #self.listbox.Bind(wx.EVT_LISTBOX_DCLICK, self.object_context_menu)
         
-        self.editor = wx.TextCtrl(self, style=wx.TE_MULTILINE|wx.TE_RICH2, size=(-1, 400))
+        self.editor = wx.TextCtrl(self, style=wx.TE_MULTILINE|wx.TE_RICH2|wx.TE_PROCESS_TAB, size=(-1, 400))
         self.editor.Bind(wx.EVT_TEXT, self.data_modified)
         self.suppress_modified = False
         

@@ -108,12 +108,13 @@ def decode_mod(path, core_dataset):
                     print 'Error decoding modification to object [%s:%s] in mod %s: object does not exist. Skipping.' % (o.type, o.name, path)
                     continue
                 else:
-                    results = merge.apply_patch_text(core_object.extra_data, patch_data)
+                    # Add the ampersand on the front to prevent stripping of initial tab, if any
+                    results = merge.apply_patch_text('&'+core_object.extra_data, patch_data)
                     n = results[1].count(False)
                     t = len(results[1])
                     if n != 0:
                         print 'Warning:  %d/%d modifications to object [%s:%s] in mod %s could not be applied and have been skipped.' % (n, t, o.type, o.name, path)
-                    o.extra_data = results[0]
+                    o.extra_data = results[0][1:] # Remove ampersand
             except:
                 print 'Error decoding modification to object [%s:%s] in mod %s. Skipping.' % (o.type, o.name, path)
                 continue
