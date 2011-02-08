@@ -51,6 +51,8 @@ def encode_mod(mod, core_dataset, overwrite=False):
     f = open(mod.path, 'wt')
     f.write('!DFMM|NAME|%s\n' % mod.name)
     f.write('!DFMM|CHECKSUM|%s\n' % core_dataset.checksum())
+    if isinstance(mod, MetaMod):
+        f.write('!DFMM|META|%s' % os.path.split(mod.parent.path)[-1])
     for object in mod.changed_objects:
         try:
             f.write('!'+object_to_dfmm_command(object, core_dataset).encode('cp437') + '\n')

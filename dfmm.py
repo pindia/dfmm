@@ -157,6 +157,7 @@ class MainFrame(wx.Frame):
         menu.AppendSeparator()
         menu_edit = menu.Append(wx.ID_ANY, "&Edit mod","")
         menu_split = menu.Append(wx.ID_ANY, "&Split mod","")
+        menu_meta = menu.Append(wx.ID_ANY, "&Create metamod","")
         menu_delete = menu.Append(wx.ID_ANY, "&Delete mod","")
         
         self.Bind(wx.EVT_MENU, self.enable_mod, menu_enable)
@@ -166,6 +167,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.export_files, menu_export_files)
         self.Bind(wx.EVT_MENU, self.split_mod, menu_split)
         self.Bind(wx.EVT_MENU, self.edit_mod, menu_edit)
+        self.Bind(wx.EVT_MENU, self.create_metamod, menu_meta)
         self.Bind(wx.EVT_MENU, self.delete_mod, menu_delete)
         
         self.PopupMenu(menu, event.GetPoint())
@@ -217,8 +219,17 @@ class MainFrame(wx.Frame):
     def new_mod(self, event):
         name = self.text_entry_dialog('Enter name for new mod', 'New mod')
         if name:
-            fname = name.lower().replace(' ','-') + '.dfmod'
+            fname = encode_filename(name)
             encode_mod(Mod(name, os.path.join('mods', fname), []), self.core_dataset)
+            self.reload_mods()
+            
+    def create_metamod(self, event):
+        i = self.listbox.GetFirstSelected()
+        mod = self.mods[i]
+        name = self.text_entry_dialog('Enter name for meta mod', 'New mod', default=mod.name + ': ')
+        if name:
+            fname = encode_filename(name)
+            encode_mod(MetaMod(name, os.path.join('mods', fname), [], mod), self.core_dataset)
             self.reload_mods()
             
     def split_mod(self, event):
@@ -267,7 +278,7 @@ class MainFrame(wx.Frame):
         if dialog.ShowModal() == wx.ID_OK:
             path = dialog.GetPath()
             mod = decode_mod(path, self.core_dataset)
-            fname = mod.name.lower().replace(' ','-') + '.dfmod'
+            fname = encode_filename(mod.name)
             mod.path = os.path.join('mods', fname)
             encode_mod(mod, self.core_dataset)
             self.reload_mods()
@@ -279,11 +290,10 @@ class MainFrame(wx.Frame):
             dialog = wx.TextEntryDialog(self, 'Enter name for imported mod', 'Import mod', '')
             if dialog.ShowModal() == wx.ID_OK:
                 name = dialog.GetValue()
-                fname = name.lower().replace(' ','-') + '.dfmod'
+                fname = encode_filename(name)
                 mod_dataset = decode_directory(path)
                 mod = Mod(name, os.path.join('mods', fname), self.core_dataset.difference(mod_dataset))
                 encode_mod(mod, self.core_dataset)
-            #fname = name.lower().replace(' ','-') + '.dfmod'
             self.reload_mods()
     
         
@@ -313,7 +323,7 @@ class MainFrame(wx.Frame):
             'The enabled mods will be merged together to form one new mod.\nThe original mods will be kept.\nMerge settings will be followed the same way as installation.\n\nEnter name for new mod:',
             'Merge mods')
         if name:
-            fname = name.lower().replace(' ','-') + '.dfmod'
+            fname = encode_filename(name)
             print 'Merging mods'
             print '-' * 20
             dataset = self.merge_selected_mods()

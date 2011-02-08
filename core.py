@@ -1,5 +1,9 @@
 import copy
 import merge
+import re
+
+def encode_filename(name):
+    return re.sub('[^\w-]+', '', name.lower().replace(' ','-')) + '.dfmod'
 
 class DataSet(object):
     def __init__(self, objects):
@@ -63,6 +67,8 @@ class DataSet(object):
                 print 'Failed to apply deletion of [%s:%s] from mod "%s" due to prior edit' % (object.type, object.name, mod.name)
             
     def apply_mod_for_editing(self, mod):
+        if isinstance(mod, MetaMod):
+            self.apply_mod_for_editing(mod.parent)
         for object in mod.objects:
             current_object = self.get_object(object.root_type, object.type, object.name)
             if current_object:
@@ -121,6 +127,10 @@ class Mod(object):
     def deleted_objects(self):
         return [o for o in self.objects if o.deleted]
 
+class MetaMod(Mod):
+    def __init__(self, name, path, objects, parent):
+        Mod.__init__(self, name, path, objects)
+        self.parent = parent
   
 
 class Object(object):

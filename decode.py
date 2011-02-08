@@ -86,17 +86,18 @@ def verify_mod_checksum(path, core_dataset):
                 return False
             return checksum == core_dataset.checksum()
     
+    
 def decode_mod(path, core_dataset):
     f = open(path, 'rt')
     commands = f.read().decode('cp437').split('!DFMM')[1:]
     for command in commands:
-        elems = command.strip().split('|', 6)
-        if elems[1] == 'NAME':
+        dfmm, keyword, value = command.strip().split('|', 2)
+        if keyword == 'NAME':
             mod = Mod(elems[2], path, [])
+            continue          
+        if keyword not in ['ADD', 'MODIFY', 'DELETE']:
             continue
-        if elems[1] not in ['ADD', 'MODIFY', 'DELETE']:
-            continue
-        dfmm, keyword, filename, root_type, type, name, patch_data = elems
+        dfmm, keyword, filename, root_type, type, name, patch_data = command.strip().split('|', 6)
         o = Object(filename, type, root_type, name)
         if keyword == 'ADD':
             o.extra_data = patch_data
