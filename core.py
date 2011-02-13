@@ -6,8 +6,9 @@ def encode_filename(name):
     return re.sub('[^\w-]+', '', name.lower().replace(' ','-')) + '.dfmod'
 
 class DataSet(object):
-    def __init__(self, objects):
+    def __init__(self, objects, included_files=[]):
         self.objects = objects
+        self.included_files = included_files
         self.objects_map = {}
         for object in self.objects:
             self.objects_map[object.root_type + object.type + object.name] = object
@@ -86,7 +87,7 @@ class DataSet(object):
             o.added = True
             changes.append(o)
         for object in my_objects - other_objects: # Deleted
-            if object.file_name not in other_filenames:
+            if object.file_name not in other.included_files:
                 continue # If the other set doesn't have the core file, assume it should be kept
             o = copy.deepcopy(object)
             o.deleted = True

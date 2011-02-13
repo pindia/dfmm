@@ -32,7 +32,7 @@ def decode_file(path):
     
     match2 = pat.search(data, pos=match.end())
     if not match2:
-        raise Exception('No object definitions found in file %s' % path)
+        return []
     type = match2.group(1)
 
 
@@ -65,7 +65,7 @@ def decode_directory(path):
     for f in sorted(os.listdir(path)):
         if f.endswith('.txt') and 'readme' not in f.lower():
             objects.extend(decode_file(os.path.join(path, f)))
-    return DataSet(objects)
+    return DataSet(objects, included_files=os.listdir(path))
 
 def decode_core():
     return decode_directory('core')

@@ -37,15 +37,20 @@ class MainFrame(wx.Frame):
             self.mod_db[mod.path]['index'] = i
         self.mod_db.sync()
 
+    def show_current_exception(self):
+        self.show_exception_dialog(*sys.exc_info())
+    
+    def show_exception_dialog(self, type, value, tb):
+        dialog = wx.MessageDialog(self, ''.join(traceback.format_exception_only(type, value)) + '\n' + ''.join(traceback.format_tb(tb)),
+                                  'Fatal error', style=wx.OK|wx.ICON_ERROR)        
+        dialog.ShowModal()
     
     def __init__(self, parent):
         wx.Frame.__init__(self, parent, title="DF Mod Manager", size=(500, 300))
         
-        
+
         def except_hook(type, value, tb):
-            dialog = wx.MessageDialog(self, ''.join(traceback.format_exception_only(type, value)) + '\n' + ''.join(traceback.format_tb(tb)),
-                                      'Fatal error', style=wx.OK|wx.ICON_ERROR)
-            dialog.ShowModal()
+            self.show_exception_dialog(type, value, tb)
             sys.exit(0)
         
         sys.excepthook = except_hook
@@ -182,9 +187,9 @@ class MainFrame(wx.Frame):
     def move_mod(self, dir):
         mod = self.mods[self.listbox.GetFirstSelected()]
         i = self.mod_db[mod.path]['index']
-        old_mods = [m for m in self.mods if self.mod_db[m.name]['index'] == i + dir]
+        old_mods = [m for m in self.mods if self.mod_db[m.path]['index'] == i + dir]
         if old_mods:
-            self.mod_db[old_mods[0].name]['index'] = i
+            self.mod_db[old_mods[0].path]['index'] = i
             self.mod_db[mod.path]['index'] = i + dir
             self.mod_db.sync()
             self.update_mod_list()
@@ -277,11 +282,14 @@ class MainFrame(wx.Frame):
         dialog = wx.FileDialog(self, 'Select File', wildcard='*.dfmod')
         if dialog.ShowModal() == wx.ID_OK:
             path = dialog.GetPath()
-            mod = decode_mod(path, self.core_dataset)
-            fname = encode_filename(mod.name)
-            mod.path = os.path.join('mods', fname)
-            encode_mod(mod, self.core_dataset)
-            self.reload_mods()
+            try:
+                mod = decode_mod(path, self.core_dataset)
+                fname = encode_filename(mod.name)
+                mod.path = os.path.join('mods', fname)
+                encode_mod(mod, self.core_dataset)
+                self.reload_mods()
+            except:
+                self.show_current_exception()
         
     def import_files(self, event):
         dialog = wx.DirDialog(self, 'Select directory', style=wx.DD_DIR_MUST_EXIST)
@@ -291,10 +299,14 @@ class MainFrame(wx.Frame):
             if dialog.ShowModal() == wx.ID_OK:
                 name = dialog.GetValue()
                 fname = encode_filename(name)
-                mod_dataset = decode_directory(path)
-                mod = Mod(name, os.path.join('mods', fname), self.core_dataset.difference(mod_dataset))
-                encode_mod(mod, self.core_dataset)
-            self.reload_mods()
+                try:
+                    mod_dataset = decode_directory(path)
+                    mod = Mod(name, os.path.join('mods', fname), self.core_dataset.difference(mod_dataset))
+                    encode_mod(mod, self.core_dataset)
+                    self.reload_mods()
+                except:
+                    self.show_current_exception()
+           
     
         
     def merge_selected_mods(self):
