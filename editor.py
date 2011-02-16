@@ -5,11 +5,17 @@ from decode import *
 
 class ModEditorFrame(wx.Frame):
     def __init__(self, parent, mod):
-        wx.Frame.__init__(self, parent, title="Mod Editor", size=(800, 600))
+        
+        title = 'Mod Editor: %s' % path_to_filename(mod.path)
+        if mod.parent:
+            title += ' (Metamod of %s)' % path_to_filename(mod.parent.path)
+        
+        wx.Frame.__init__(self, parent, title=title, size=(800, 600))
         
         self.parent = parent
         
         self.init_menu()
+        self.load_templates()
         
         self.core_dataset = mod.base
         self.core_objects = self.core_dataset.objects
@@ -39,6 +45,17 @@ class ModEditorFrame(wx.Frame):
             if changed_objects != 0:
                 text += ' [%d]' % changed_objects
             self.nb.AddPage(ObjectTypePanel(self.nb, header, headers[header], self), text)
+        
+        
+    def load_templates(self):
+        self.templates = {}
+        if not os.path.exists('templates'):
+            return
+        for fname in os.listdir('templates'):
+            object_type = fname.split('.')[0].upper()
+            f = open(os.path.join('templates', fname))
+            self.templates[object_type] = f.read()
+            f.close()
         
     def init_menu(self):
         
@@ -90,6 +107,8 @@ class ModEditorFrame(wx.Frame):
             if 'dfmm' not in new_fname:
                 new_fname = new_fname.split('.')[0] + '_dfmm.txt'
             object = Object(new_fname, ref_object.type, ref_object.root_type, dialog.GetValue())
+            if ref_object.type in self.templates:
+                object.extra_data = self.templates[ref_object.type]
             object.added = True
             self.objects.append(object)
             panel.objects.append(object)
@@ -113,8 +132,8 @@ class ModEditorFrame(wx.Frame):
             object.modified = False
             object.deleted = True
             object.extra_data = '<DELETED>'
-        panel.update_listbox(i)
-        panel.listbox_clicked(None)
+            panel.update_listbox(i)
+            panel.listbox_clicked(None)
         
         
     def revert_object(self, event):

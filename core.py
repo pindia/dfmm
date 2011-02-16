@@ -1,9 +1,13 @@
 import copy
 import merge
 import re
+import os
 
 def encode_filename(name):
     return re.sub('[^\w-]+', '', name.lower().replace(' ','-')) + '.dfmod'
+    
+def path_to_filename(path):
+    return os.path.split(path)[-1]
 
 class DataSet(object):
     def __init__(self, objects, included_files=[]):
