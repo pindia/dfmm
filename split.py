@@ -287,8 +287,8 @@ class ModSplitterFrame(wx.Frame):
     def save_clicked(self, event):
         name1 = self.name1.GetValue()
         name2 = self.name2.GetValue()
-        path1 = os.path.join('mods',name1.lower().replace(' ','-') + '.dfmod')
-        path2 = os.path.join('mods',name2.lower().replace(' ','-') + '.dfmod')
+        path1 = os.path.join('mods',encode_filename(name1))
+        path2 = os.path.join('mods',encode_filename(name2))
         
         if not name1 or not name2:
             self.info_dialog('You must enter names for both output mods.','Enter names')
@@ -297,8 +297,8 @@ class ModSplitterFrame(wx.Frame):
             if not self.ok_cancel_dialog('Warning: you have entered the same name for the first output mod as the original mod. Are you sure you want to overwrite the original mod?', 'Overwrite mod?'):
                 return
         
-        encode_mod(Mod(name1, path1, self.tree1.objects), self.core_dataset, overwrite=True)
-        encode_mod(Mod(name2, path2, self.tree2.objects), self.core_dataset)
+        encode_mod(Mod(name1, path1, self.core_dataset, self.tree1.objects), overwrite=True)
+        encode_mod(Mod(name2, path2, self.core_dataset, self.tree2.objects))
         print 'Mod split.'
         if self.parent:
             self.parent.reload_mods()

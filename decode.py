@@ -2,21 +2,6 @@ from core import *
 import merge
 import re, os, itertools
 
-TYPES = ['ITEM_FOOD','ITEM_SHIELD','SYMBOL','ITEM_TRAPCOMP','ENTITY',
-         'ITEM_PANTS','TISSUE_TEMPLATE','REACTION','WORD','BUILDING_WORKSHOP','BUILDING_FURNACE',
-         'COLOR','ITEM_SHOES','SHAPE','ITEM_AMMO','ITEM_INSTRUMENT','ITEM_GLOVES',
-         'TRANSLATION','BODY','ITEM_ARMOR','ITEM_TOY','COLOR_PATTERN','MATERIAL_TEMPLATE',
-         'ITEM_HELM','BODY_DETAIL_PLAN','PLANT','ITEM_WEAPON','ITEM_SIEGEAMMO','INORGANIC',
-         'CREATURE_VARIATION','CREATURE','ITEM_TOOL']
-
-ONLY_IN_SPECIFIC_TYPES = {'BODY':'BODY',
-                          'CREATURE':'CREATURE',
-                          'BODY_DETAIL_PLAN':'BODY_DETAIL_PLAN',
-                          'ENTITY':'ENTITY',
-                          'COLOR':'DESCRIPTOR_COLOR',
-                          'TRANSLATION':'LANGUAGE',
-                          'WORD':'LANGUAGE'}
-
 def decode_file(path):
     ''' Parses a raw file and returns a list of the objects in it '''
     fname = os.path.split(path)[-1]
@@ -73,27 +58,31 @@ def decode_core():
 def get_mod_list():
     return [f for f in os.listdir('mods') if f.endswith('.dfmod')]
     
-def verify_mod_checksum(path, core_dataset):
+  
+def decode_mod_headers(path):
+    ''' Returns only the header information from the mod as a dictionary '''
+    d = {}
     f = open(path, 'rt')
     for line in f:
         if '!DFMM' not in line:
             return False
         dfmm, keyword, value = line.strip().split('|', 2)
-        if keyword == 'CHECKSUM':
-            try:
-                checksum = int(value)
-            except ValueError:
-                return False
-            return checksum == core_dataset.checksum()
+        if keyword in ['ADD', 'MODIFY', 'DELETE']:
+            # We have reached the end of the header; now we have a "real" command
+            return d
+        else:
+            d[keyword.lower()] = value
+    return d
     
     
-def decode_mod(path, core_dataset):
+    
+def decode_mod(path, base_dataset):
     f = open(path, 'rt')
     commands = f.read().decode('cp437').split('!DFMM')[1:]
     for command in commands:
         dfmm, keyword, value = command.strip().split('|', 2)
         if keyword == 'NAME':
-            mod = Mod(elems[2], path, [])
+            mod = Mod(value, path, base_dataset, [])
             continue          
         if keyword not in ['ADD', 'MODIFY', 'DELETE']:
             continue
@@ -104,7 +93,7 @@ def decode_mod(path, core_dataset):
             o.added = True
         elif keyword == 'MODIFY':
             try:
-                core_object = core_dataset.get_object(o.root_type,o.type, o.name)
+                core_object = base_dataset.get_object(o.root_type,o.type, o.name)
                 if not core_object:
                     print 'Error decoding modification to object [%s:%s] in mod %s: object does not exist. Skipping.' % (o.type, o.name, path)
                     continue
@@ -127,8 +116,6 @@ def decode_mod(path, core_dataset):
         mod.objects.append(o)
     return mod
         
-def decode_all_mods(core_dataset):
-    return [decode_mod(os.path.join('mods', p), core_dataset) for p in get_mod_list()]
         
    
 if __name__ == '__main__': 

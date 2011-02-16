@@ -4,16 +4,17 @@ from encode import *
 from decode import *
 
 class ModEditorFrame(wx.Frame):
-    def __init__(self, parent, core_dataset, mod):
+    def __init__(self, parent, mod):
         wx.Frame.__init__(self, parent, title="Mod Editor", size=(800, 600))
         
         self.parent = parent
         
         self.init_menu()
         
-        self.core_dataset = core_dataset
-        self.core_objects = core_dataset.objects
-        dataset = copy.deepcopy(core_dataset)
+        self.core_dataset = mod.base
+        self.core_objects = self.core_dataset.objects
+        
+        dataset = copy.deepcopy(self.core_dataset)
         dataset.apply_mod_for_editing(mod)
         self.objects = dataset.objects
         
@@ -130,7 +131,8 @@ class ModEditorFrame(wx.Frame):
         panel.listbox_clicked(None)
         
     def save(self, event):
-        encode_mod(Mod(self.mod.name, self.mod.path, self.objects), self.core_dataset, overwrite=True)
+        self.mod.objects = self.objects
+        encode_mod(self.mod, overwrite=True)
         if self.parent:
             self.parent.reload_mods()
         
@@ -164,12 +166,19 @@ class ObjectTypePanel(wx.Panel):
         
         
         
-        self.sizer = wx.BoxSizer(wx.HORIZONTAL)
+        '''self.sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.SetSizer(self.sizer)
         self.SetAutoLayout(1)
         self.sizer.Add(self.listbox, 1)
         self.sizer.Add(self.editor, 3)
-        self.sizer.Fit(self)
+        self.sizer.Fit(self)'''
+        
+        self.horizontal = wx.BoxSizer(wx.HORIZONTAL)
+        self.horizontal.Add(self.listbox, 1, wx.EXPAND)
+        self.horizontal.Add(self.editor, 3, wx.EXPAND)
+        self.vertical = wx.BoxSizer(wx.VERTICAL)
+        self.vertical.Add(self.horizontal, 1, wx.EXPAND)
+        self.SetSizerAndFit(self.vertical)
         
         objects.sort(key=lambda o: o.name)
         

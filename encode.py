@@ -41,7 +41,7 @@ def object_to_dfmm_command(object, core_dataset):
     if object.deleted:
         return 'DFMM|DELETE|%s|' % id
 
-def encode_mod(mod, core_dataset, overwrite=False):
+def encode_mod(mod, overwrite=False):
     if os.path.exists(mod.path) and not overwrite: # Rename path to avoid overwrite
         pat = '%s-%%d.dfmod' % mod.path.split('.')[0]
         i = 0
@@ -50,12 +50,12 @@ def encode_mod(mod, core_dataset, overwrite=False):
         mod.path = pat % i
     f = open(mod.path, 'wt')
     f.write('!DFMM|NAME|%s\n' % mod.name)
-    f.write('!DFMM|CHECKSUM|%s\n' % core_dataset.checksum())
-    if isinstance(mod, MetaMod):
-        f.write('!DFMM|META|%s' % os.path.split(mod.parent.path)[-1])
+    f.write('!DFMM|CHECKSUM|%s\n' % mod.base.checksum())
+    if mod.parent:
+        f.write('!DFMM|META|%s\n' % os.path.split(mod.parent.path)[-1])
     for object in mod.changed_objects:
         try:
-            f.write('!'+object_to_dfmm_command(object, core_dataset).encode('cp437') + '\n')
+            f.write('!'+object_to_dfmm_command(object, mod.base).encode('cp437') + '\n')
         except UnicodeDecodeError:
             print object.type
             print object.name

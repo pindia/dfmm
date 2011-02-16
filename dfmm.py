@@ -11,19 +11,53 @@ class MainFrame(wx.Frame):
         #self.mods = decode_all_mods(self.core_dataset)
         self.mods = []
         notified = False
+        mod_headers = {}
+        # First, let's read the headers of all the mods
         for mod in get_mod_list():
             path = os.path.join('mods', mod)
-            if not verify_mod_checksum(path, self.core_dataset):
+            mod_headers[path] = decode_mod_headers(path)
+            
+        # Now, let's verify the checksums of all the mods and update if needed
+        core_checksum = str(self.core_dataset.checksum())
+        for mod, headers in mod_headers.items():
+            if 'meta' in headers:
+                continue # Verify only core files for now
+            if headers['checksum'] != core_checksum:
                 if not notified:
                     notified = True
                     print 'Updating mods...'
                     self.info_dialog('DFMM has detected a change in your core files. The patches defined in your mods will be re-rolled to improve efficiency. Depending on the number and size of your mods, this may take several minutes. Watch the console window for possible notifications about changes that cannot be applied to the new files.', 'Core files changed')
                 print 'Processing mod "%s"...' % mod
                 mod = decode_mod(path, self.core_dataset)
-                encode_mod(mod, self.core_dataset, overwrite=True)
+                encode_mod(mod, overwrite=True)
         if notified:
             print 'Done updating mods.'
-        self.mods = decode_all_mods(self.core_dataset)
+            
+        # First, process the normal mods. This makes them available for the
+        # metamods to reference
+        for path, headers in mod_headers.items():
+            if 'meta' not in headers:
+                self.mods.append(decode_mod(path, self.core_dataset))
+                
+        # Then, the metamods
+        for path, headers in mod_headers.items():
+            if 'meta' in headers:
+                parent_path = headers['meta']
+                parent = [mod for mod in self.mods if os.path.split(mod.path)[-1] == parent_path]
+                if len(parent) == 0:
+                    self.warning_dialog('The metamod "%s" could not be loaded because the the file it references, "%s", was not found.' % (path, parent_path), 'Mod not loaded')
+                    continue
+                parent = parent[0]
+                dataset = copy.deepcopy(self.core_dataset)
+                dataset.apply_mod(parent, self.core_dataset)
+                dataset.strip_object_status()
+                mod = decode_mod(path, dataset)
+                mod.parent = parent
+                self.mods.append(mod)
+                
+            
+            
+            
         self.update_mod_list()
     
     def update_mod_list(self):
@@ -163,6 +197,10 @@ class MainFrame(wx.Frame):
         menu_edit = menu.Append(wx.ID_ANY, "&Edit mod","")
         menu_split = menu.Append(wx.ID_ANY, "&Split mod","")
         menu_meta = menu.Append(wx.ID_ANY, "&Create metamod","")
+        if mod.meta:
+            menu_meta.Enable(False)
+            menu_split.Enable(False)
+            menu_export_files.Enable(False)
         menu_delete = menu.Append(wx.ID_ANY, "&Delete mod","")
         
         self.Bind(wx.EVT_MENU, self.enable_mod, menu_enable)
@@ -180,6 +218,17 @@ class MainFrame(wx.Frame):
     def enable_mod(self, event):
         mod = self.mods[self.listbox.GetFirstSelected()]
         self.mod_db[mod.path]['enabled'] = not self.mod_db[mod.path]['enabled']
+        
+        if self.mod_db[mod.path]['enabled']:
+            # Enable the parent mod if a metamod
+            for other_mod in self.mods:
+                if mod.parent == other_mod:
+                    self.mod_db[other_mod.path]['enabled'] = True
+        else:
+            # Disable metamods as well
+            for other_mod in self.mods:
+                if other_mod.parent == mod:
+                    self.mod_db[other_mod.path]['enabled'] = False
         self.mod_db.sync()
         self.update_mod_list()
         
@@ -189,7 +238,14 @@ class MainFrame(wx.Frame):
         i = self.mod_db[mod.path]['index']
         old_mods = [m for m in self.mods if self.mod_db[m.path]['index'] == i + dir]
         if old_mods:
-            self.mod_db[old_mods[0].path]['index'] = i
+            old_mod = old_mods[0]
+            if dir == 1 and old_mod.parent == mod:
+                self.warning_dialog('A mod may not be moved below one of its metamods.', 'Invalid move')
+                return
+            if dir == -1 and mod.parent == old_mod:
+                self.warning_dialog('A metamod may not be moved above its parent mod.', 'Invalid move')
+                return
+            self.mod_db[old_mod.path]['index'] = i
             self.mod_db[mod.path]['index'] = i + dir
             self.mod_db.sync()
             self.update_mod_list()
@@ -205,6 +261,14 @@ class MainFrame(wx.Frame):
         
     def info_dialog(self, message, title):
         dialog = wx.MessageDialog(self, message, title, style=wx.OK)
+        dialog.ShowModal()
+        
+    def warning_dialog(self, message, title):
+        dialog = wx.MessageDialog(self, message,title, style=wx.OK|wx.ICON_WARNING)        
+        dialog.ShowModal()
+        
+    def error_dialog(self, message, title):
+        dialog = wx.MessageDialog(self, message,title, style=wx.OK|wx.ICON_ERROR)        
         dialog.ShowModal()
         
     def yes_no_dialog(self, message, title):
@@ -225,7 +289,7 @@ class MainFrame(wx.Frame):
         name = self.text_entry_dialog('Enter name for new mod', 'New mod')
         if name:
             fname = encode_filename(name)
-            encode_mod(Mod(name, os.path.join('mods', fname), []), self.core_dataset)
+            encode_mod(Mod(name, os.path.join('mods', fname), self.core_dataset, []))
             self.reload_mods()
             
     def create_metamod(self, event):
@@ -234,7 +298,7 @@ class MainFrame(wx.Frame):
         name = self.text_entry_dialog('Enter name for meta mod', 'New mod', default=mod.name + ': ')
         if name:
             fname = encode_filename(name)
-            encode_mod(MetaMod(name, os.path.join('mods', fname), [], mod), self.core_dataset)
+            encode_mod(Mod(name, os.path.join('mods', fname), self.core_dataset, [], parent=mod))
             self.reload_mods()
             
     def split_mod(self, event):
@@ -248,7 +312,7 @@ class MainFrame(wx.Frame):
     def edit_mod(self, event):
         i = self.listbox.GetFirstSelected()
         mod = self.mods[i]
-        frame = ModEditorFrame(self, self.core_dataset, mod)
+        frame = ModEditorFrame(self, mod)
         frame.Show()
         
     def delete_mod(self, event):
@@ -268,7 +332,7 @@ class MainFrame(wx.Frame):
             path = dialog.GetPath()
             new_mod = copy.deepcopy(mod)
             new_mod.path = path
-            encode_mod(new_mod, self.core_dataset)
+            encode_mod(new_mod)
             
     def export_files(self, event):
         dialog = wx.DirDialog(self, 'Select directory')
@@ -286,7 +350,7 @@ class MainFrame(wx.Frame):
                 mod = decode_mod(path, self.core_dataset)
                 fname = encode_filename(mod.name)
                 mod.path = os.path.join('mods', fname)
-                encode_mod(mod, self.core_dataset)
+                encode_mod(mod)
                 self.reload_mods()
             except:
                 self.show_current_exception()
@@ -301,8 +365,8 @@ class MainFrame(wx.Frame):
                 fname = encode_filename(name)
                 try:
                     mod_dataset = decode_directory(path)
-                    mod = Mod(name, os.path.join('mods', fname), self.core_dataset.difference(mod_dataset))
-                    encode_mod(mod, self.core_dataset)
+                    mod = Mod(name, os.path.join('mods', fname), self.core_dataset, self.core_dataset.difference(mod_dataset))
+                    encode_mod(mod)
                     self.reload_mods()
                 except:
                     self.show_current_exception()
@@ -339,8 +403,8 @@ class MainFrame(wx.Frame):
             print 'Merging mods'
             print '-' * 20
             dataset = self.merge_selected_mods()
-            mod = Mod(name, os.path.join('mods', fname), self.core_dataset.difference(dataset))
-            encode_mod(mod, self.core_dataset)
+            mod = Mod(name, os.path.join('mods', fname), self.core_dataset, self.core_dataset.difference(dataset))
+            encode_mod(mod)
             print 'Merge complete'
             self.reload_mods()
         

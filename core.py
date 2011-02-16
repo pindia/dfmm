@@ -21,6 +21,7 @@ class DataSet(object):
         
     def add_object(self, object):
         self.objects.append(object)
+        self.objects_map[object.root_type + object.type + object.name] = object
         
 
     
@@ -55,7 +56,7 @@ class DataSet(object):
                 print 'Failed to apply edits to [%s:%s] from mod %s due to prior edit (Merges are disabled)' % (object.type, object.name, mod.name)
         for object in mod.deleted_objects:
             current_object = self.get_object(object.root_type, object.type, object.name)
-            if current_object not in self.objects: # Already deleted, don't worry about it
+            if not current_object or current_object not in self.objects: # Already deleted, don't worry about it
                 continue
             if not current_object.modified:
                 current_object.deleted = True
@@ -68,8 +69,6 @@ class DataSet(object):
                 print 'Failed to apply deletion of [%s:%s] from mod "%s" due to prior edit' % (object.type, object.name, mod.name)
             
     def apply_mod_for_editing(self, mod):
-        if isinstance(mod, MetaMod):
-            self.apply_mod_for_editing(mod.parent)
         for object in mod.objects:
             current_object = self.get_object(object.root_type, object.type, object.name)
             if current_object:
@@ -101,16 +100,33 @@ class DataSet(object):
                 changes.append(o)
         return changes
     
+    def strip_object_status(self):
+        ''' Removes the indicators on each object that track whether it has been
+        added, edited, or deleted. Used when modifying bases for metamods'''
+        new_objects = []
+        for object in self.objects:
+            if object.added or object.modified or object.deleted:
+                new_object = copy.copy(object)
+                new_object.added = False
+                new_object.modified = False
+                new_object.deleted = False
+                new_objects.append(new_object)
+            else:
+                new_objects.append(object)
+        self.objects = new_objects
+    
     def checksum(self):
         s = sum([hash(o.name + o.extra_data) for o in self.objects])
         return hash(s)
 
 class Mod(object):
     ''' A mod object stores only the objects it changes..'''
-    def __init__(self, name, path, objects):
+    def __init__(self, name, path, base, objects, parent=None):
         self.name = name.encode('utf-8') # Make sure name is a string to be usable in keyss
         self.path = path
+        self.base = base
         self.objects = objects
+        self.parent = parent
         
     @property
     def changed_objects(self):
@@ -127,11 +143,15 @@ class Mod(object):
     @property
     def deleted_objects(self):
         return [o for o in self.objects if o.deleted]
+        
+    @property
+    def meta(self):
+        return self.parent is not None
 
-class MetaMod(Mod):
-    def __init__(self, name, path, objects, parent):
-        Mod.__init__(self, name, path, objects)
-        self.parent = parent
+'''class MetaMod(Mod):
+    def __init__(self, name, path, objects, parent, base_dataset=None):
+        Mod.__init__(self, name, path, objects, base_dataset)
+        self.parent = parent'''
   
 
 class Object(object):
