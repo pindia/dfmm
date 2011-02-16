@@ -192,6 +192,7 @@ class MainFrame(wx.Frame):
         menu_down = menu.Append(wx.ID_ANY, "Move down","")
         menu.AppendSeparator()
         menu_export_dfmod = menu.Append(wx.ID_ANY, "Export .dfmod","")
+        menu_export_dfmod_zip = menu.Append(wx.ID_ANY, "Export .dfmod zip","")
         menu_export_files = menu.Append(wx.ID_ANY, "Export to directory","")
         menu.AppendSeparator()
         menu_edit = menu.Append(wx.ID_ANY, "&Edit mod","")
@@ -200,6 +201,7 @@ class MainFrame(wx.Frame):
         if mod.meta:
             menu_meta.Enable(False)
             menu_split.Enable(False)
+            menu_export_dfmod_zip.Enable(False)
             menu_export_files.Enable(False)
         menu_delete = menu.Append(wx.ID_ANY, "&Delete mod","")
         
@@ -207,6 +209,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.move_mod_up, menu_up)
         self.Bind(wx.EVT_MENU, self.move_mod_down, menu_down)
         self.Bind(wx.EVT_MENU, self.export_dfmod, menu_export_dfmod)
+        self.Bind(wx.EVT_MENU, self.export_dfmod_zip, menu_export_dfmod_zip)
         self.Bind(wx.EVT_MENU, self.export_files, menu_export_files)
         self.Bind(wx.EVT_MENU, self.split_mod, menu_split)
         self.Bind(wx.EVT_MENU, self.edit_mod, menu_edit)
@@ -333,6 +336,18 @@ class MainFrame(wx.Frame):
             new_mod = copy.deepcopy(mod)
             new_mod.path = path
             encode_mod(new_mod)
+            
+    def export_dfmod_zip(self, event):
+        i = self.listbox.GetFirstSelected()
+        mod = self.mods[i]
+        dialog = wx.FileDialog(self, 'Select File', wildcard='*.zip', style=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
+        if dialog.ShowModal() == wx.ID_OK:
+            path = dialog.GetPath()
+            mods = [mod]
+            for m in self.mods:
+                if m.parent == mod:
+                    mods.append(m)
+            encode_mods(mods, path)
             
     def export_files(self, event):
         dialog = wx.DirDialog(self, 'Select directory')

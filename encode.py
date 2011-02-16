@@ -1,6 +1,7 @@
 from core import *
 import merge
 import os
+import zipfile
 
 def encode_object(o):
     return ('[%s:%s]\n' % (o.type, o.name) + o.extra_data + '\n\n').encode('cp437')
@@ -62,6 +63,13 @@ def encode_mod(mod, overwrite=False):
             print object.extra_data
             raise
     f.close()
+    
+def encode_mods(mods, path):
+    ''' Encodes a list of mods to a .zip file at path '''
+    zf = zipfile.ZipFile(path, 'w')
+    for mod in mods:
+        zf.write(mod.path)
+    zf.close()
     
     
 if __name__ == '__main__':
