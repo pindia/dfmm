@@ -62,7 +62,10 @@ def get_mod_list():
 def decode_mod_headers(path):
     ''' Returns only the header information from the mod as a dictionary '''
     d = {}
-    f = open(path, 'rt')
+    if hasattr(path, 'read'):
+        f = path
+    else:
+        f = open(path, 'rt')
     for line in f:
         if '!DFMM' not in line:
             return False
@@ -77,7 +80,10 @@ def decode_mod_headers(path):
     
     
 def decode_mod(path, base_dataset):
-    f = open(path, 'rt')
+    if hasattr(path, 'read'):
+        f = path
+    else:
+        f = open(path, 'rt')
     commands = f.read().decode('cp437').split('!DFMM')[1:]
     for command in commands:
         dfmm, keyword, value = command.strip().split('|', 2)

@@ -37,28 +37,38 @@ class MainFrame(wx.Frame):
         # metamods to reference
         for path, headers in mod_headers.items():
             if 'meta' not in headers:
-                self.mods.append(decode_mod(path, self.core_dataset))
+                self.load_normal_mod(path)
                 
         # Then, the metamods
         for path, headers in mod_headers.items():
             if 'meta' in headers:
-                parent_path = headers['meta']
-                parent = [mod for mod in self.mods if os.path.split(mod.path)[-1] == parent_path]
-                if len(parent) == 0:
-                    self.warning_dialog('The metamod "%s" could not be loaded because the the file it references, "%s", was not found.' % (path, parent_path), 'Mod not loaded')
-                    continue
-                parent = parent[0]
-                dataset = copy.deepcopy(self.core_dataset)
-                dataset.apply_mod(parent, self.core_dataset)
-                dataset.strip_object_status()
-                mod = decode_mod(path, dataset)
-                mod.parent = parent
-                self.mods.append(mod)
+                self.load_metamod(path, headers)
                 
-            
-            
-            
         self.update_mod_list()
+        
+    def load_normal_mod(self, path):
+        mod = decode_mod(path, self.core_dataset)
+        self.mods.append(mod)
+        return mod
+        
+    def load_metamod(self, path, headers=None):
+        if not headers:
+            headers = decode_mod_headers(path)
+        parent_path = headers['meta']
+        parent = [mod for mod in self.mods if os.path.split(mod.path)[-1] == parent_path]
+        if len(parent) == 0:
+            self.warning_dialog('The metamod "%s" could not be loaded because the the file it references, "%s", was not found.' % (path, parent_path), 'Mod not loaded')
+            return
+        parent = parent[0]
+        dataset = copy.deepcopy(self.core_dataset)
+        dataset.apply_mod(parent, self.core_dataset)
+        dataset.strip_object_status()
+        mod = decode_mod(path, dataset)
+        mod.parent = parent
+        self.mods.append(mod)
+        return mod
+            
+        
     
     def update_mod_list(self):
         self.listbox.DeleteAllItems()
@@ -146,9 +156,11 @@ class MainFrame(wx.Frame):
 
         self.importmenu = wx.Menu()
         menu_import_dfmod = self.importmenu.Append(wx.ID_ANY, "Import .dfmod","")
+        menu_import_dfmod_zip = self.importmenu.Append(wx.ID_ANY, "Import .dfmod zip","")
         menu_import_files = self.importmenu.Append(wx.ID_ANY, "Import from directory","")
         
         self.Bind(wx.EVT_MENU, self.import_dfmod, menu_import_dfmod)
+        self.Bind(wx.EVT_MENU, self.import_dfmod_zip, menu_import_dfmod_zip)
         self.Bind(wx.EVT_MENU, self.import_files, menu_import_files)
         
         OPTIONS = [['_merge_changes','Merge changes'], ['_partial_merge','Allow partial merge'], ['_delete_override','Delete overrides edit']]
@@ -200,7 +212,6 @@ class MainFrame(wx.Frame):
         menu_meta = menu.Append(wx.ID_ANY, "&Create metamod","")
         if mod.meta:
             menu_meta.Enable(False)
-            menu_split.Enable(False)
             menu_export_dfmod_zip.Enable(False)
             menu_export_files.Enable(False)
         menu_delete = menu.Append(wx.ID_ANY, "&Delete mod","")
@@ -369,6 +380,35 @@ class MainFrame(wx.Frame):
                 self.reload_mods()
             except:
                 self.show_current_exception()
+                
+    def import_dfmod_zip(self, event):
+        dialog = wx.FileDialog(self, 'Select File', wildcard='*.zip')
+        if dialog.ShowModal() == wx.ID_OK:
+            path = dialog.GetPath()
+            try:
+                zf = zipfile.ZipFile(path)
+                paths = [name for name in zf.namelist() if name.endswith('.dfmod')]
+                if not paths:
+                    self.warning_dialog('No .dfmod files found in the selected zip file','Import failed')
+                    return
+                mod_headers = []
+                for path in paths:
+                    mod_headers.append(decode_mod_headers(zf.open(path)))
+                for path, headers in zip(paths, mod_headers):
+                    if 'meta' not in headers:
+                        mod = self.load_normal_mod(zf.open(path))
+                        fname = path_to_filename(path)
+                        mod.path = os.path.join('mods', fname)
+                        encode_mod(mod)
+                for path, headers in zip(paths, mod_headers):
+                    if 'meta' in headers:
+                        mod = self.load_metamod(zf.open(path), headers)
+                        fname = path_to_filename(path)
+                        mod.path = os.path.join('mods', fname)
+                        encode_mod(mod)
+                self.reload_mods()
+            except:
+                self.show_current_exception()        
         
     def import_files(self, event):
         dialog = wx.DirDialog(self, 'Select directory', style=wx.DD_DIR_MUST_EXIST)

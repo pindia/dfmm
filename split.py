@@ -253,6 +253,11 @@ class ModSplitterFrame(wx.Frame):
         self.name1 = wx.TextCtrl(self, size=(200, 20))
         self.name1.AppendText(mod.name)
         self.name2 = wx.TextCtrl(self, size=(200,20))
+        
+        self.meta_checkbox = wx.CheckBox(self)
+        if self.mod.parent:
+            self.meta_checkbox.SetValue(True)
+            self.meta_checkbox.Enable(False)
 
         self.header1 = wx.BoxSizer(wx.HORIZONTAL)
         self.header1.Add(wx.StaticText(self, label="Mod 1 name:"), 0, wx.ALIGN_CENTER_VERTICAL)
@@ -260,6 +265,9 @@ class ModSplitterFrame(wx.Frame):
         self.header2 = wx.BoxSizer(wx.HORIZONTAL)
         self.header2.Add(wx.StaticText(self, label="Mod 2 name:"), 0, wx.ALIGN_CENTER_VERTICAL)
         self.header2.Add(self.name2, 0)
+        self.header2.Add(wx.StaticText(self, label="Meta:"), 0, wx.ALIGN_CENTER_VERTICAL)
+        self.header2.Add(self.meta_checkbox, 0, wx.ALIGN_CENTER_VERTICAL)
+
         
         
         self.mod1 = wx.BoxSizer(wx.VERTICAL)
@@ -297,8 +305,11 @@ class ModSplitterFrame(wx.Frame):
             if not self.ok_cancel_dialog('Warning: you have entered the same name for the first output mod as the original mod. Are you sure you want to overwrite the original mod?', 'Overwrite mod?'):
                 return
         
-        encode_mod(Mod(name1, path1, self.core_dataset, self.tree1.objects), overwrite=True)
-        encode_mod(Mod(name2, path2, self.core_dataset, self.tree2.objects))
+        encode_mod(Mod(name1, path1, self.core_dataset, self.tree1.objects, self.mod.parent), overwrite=True)
+        mod2parent = self.mod.parent
+        if not mod2parent and self.meta_checkbox.IsChecked():
+            mod2parent = self.mod
+        encode_mod(Mod(name2, path2, self.core_dataset, self.tree2.objects, mod2parent))
         print 'Mod split.'
         if self.parent:
             self.parent.reload_mods()
@@ -327,7 +338,7 @@ if __name__ == "__main__":
     core_dataset = decode_core()
     
     
-    frame = ModSplitterFrame(None, decode_mod('mods/kobold-camp.dfmod', core_dataset), core_dataset)
+    frame = ModSplitterFrame(None, decode_mod('mods/fortress-defense.dfmod', core_dataset), core_dataset)
     frame.Show()
     frame.SetSize((800,600))
 

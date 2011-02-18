@@ -152,10 +152,6 @@ class Mod(object):
     def meta(self):
         return self.parent is not None
 
-'''class MetaMod(Mod):
-    def __init__(self, name, path, objects, parent, base_dataset=None):
-        Mod.__init__(self, name, path, objects, base_dataset)
-        self.parent = parent'''
   
 
 class Object(object):
