@@ -26,9 +26,9 @@ class MainFrame(wx.Frame):
                 if not notified:
                     notified = True
                     print 'Updating mods...'
-                    self.info_dialog('DFMM has detected a change in your core files. The patches defined in your mods will be re-rolled to improve efficiency. Depending on the number and size of your mods, this may take several minutes. Watch the console window for possible notifications about changes that cannot be applied to the new files.', 'Core files changed')
+                    self.info_dialog('DFMM has detected a change in your core files. The patches defined in your mods will be re-rolled. Depending on the number and size of your mods, this may take several minutes. Watch the console window for possible notifications about changes that cannot be applied to the new files.', 'Core files changed')
                 print 'Processing mod "%s"...' % mod
-                mod = decode_mod(path, self.core_dataset)
+                mod = decode_mod(mod, self.core_dataset)
                 encode_mod(mod, overwrite=True)
         if notified:
             print 'Done updating mods.'
@@ -312,7 +312,12 @@ class MainFrame(wx.Frame):
         name = self.text_entry_dialog('Enter name for meta mod', 'New mod', default=mod.name + ': ')
         if name:
             fname = encode_filename(name)
-            encode_mod(Mod(name, os.path.join('mods', fname), self.core_dataset, [], parent=mod))
+            path = str(os.path.join('mods', fname))
+            encode_mod(Mod(name, path, self.core_dataset, [], parent=mod))
+            # Place new mod after parent
+            self.mod_db[path]['index'] = self.mod_db[mod.path]['index'] + 1
+            # Enable new mod if and only if parent is enabled
+            self.mod_db[path]['enabled'] = self.mod_db[mod.path]['enabled']
             self.reload_mods()
             
     def split_mod(self, event):
@@ -404,8 +409,9 @@ class MainFrame(wx.Frame):
                     if 'meta' in headers:
                         mod = self.load_metamod(zf.open(path), headers)
                         fname = path_to_filename(path)
-                        mod.path = os.path.join('mods', fname)
-                        encode_mod(mod)
+                        if mod:
+                            mod.path = os.path.join('mods', fname)
+                            encode_mod(mod)
                 self.reload_mods()
             except:
                 self.show_current_exception()        
@@ -432,7 +438,7 @@ class MainFrame(wx.Frame):
         dataset = copy.deepcopy(self.core_dataset)
         for mod in self.mods:
             if self.mod_db[mod.path]['enabled']:
-                dataset.apply_mod(mod, self.core_dataset,
+                dataset.apply_mod(mod,
                                     merge_changes=self.mod_db['_merge_changes'],
                                     partial_merge=self.mod_db['_partial_merge'],
                                     delete_override=self.mod_db['_delete_override'])

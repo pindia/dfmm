@@ -30,9 +30,10 @@ class DataSet(object):
 
     
             
-    def apply_mod(self, mod, core_dataset, merge_changes=True, partial_merge=False, delete_override=False):
+    def apply_mod(self, mod, merge_changes=True, partial_merge=False, delete_override=False):
+        core_dataset = mod.base
         for object in mod.added_objects:
-            self.add_object(object)
+            self.add_object(copy.copy(object))
         for object in mod.modified_objects:
             current_object = self.get_object(object.root_type, object.type, object.name)
             core_object = core_dataset.get_object(object.root_type, object.type, object.name)
@@ -151,6 +152,9 @@ class Mod(object):
     @property
     def meta(self):
         return self.parent is not None
+    
+    def __str__(self):
+        return '%s\nA:%s\nM:%s\nD:%s' % (self.name, self.added_objects, self.modified_objects, self.deleted_objects)
 
   
 
