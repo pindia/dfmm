@@ -337,6 +337,9 @@ class MainFrame(wx.Frame):
     def delete_mod(self, event):
         i = self.listbox.GetFirstSelected()
         mod = self.mods[i]
+        if [m for m in self.mods if m.parent == mod]:
+            self.warning_dialog('Cannot delete "%s" because it has metamods. Delete them first.' % mod.name, 'Delete failed')
+            return
         dialog = wx.MessageDialog(self, 'Are you sure you want to delete "%s"?' % mod.name,
                                   'Delete mod',style=wx.OK|wx.CANCEL)
         if dialog.ShowModal() == wx.ID_OK:
@@ -370,8 +373,10 @@ class MainFrame(wx.Frame):
         i = self.listbox.GetFirstSelected()
         mod = self.mods[i]
         if dialog.ShowModal() == wx.ID_OK:
+            dataset = copy.deepcopy(self.core_dataset)
+            dataset.apply_mod(mod)
             path = dialog.GetPath()
-            encode_to_directory(mod.objects, path)
+            encode_to_directory(dataset.objects, path)
         
     def import_dfmod(self, event):
         dialog = wx.FileDialog(self, 'Select File', wildcard='*.dfmod')
