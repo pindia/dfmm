@@ -61,7 +61,7 @@ class MainFrame(wx.Frame):
             return
         parent = parent[0]
         dataset = copy.deepcopy(self.core_dataset)
-        dataset.apply_mod(parent, self.core_dataset)
+        dataset.apply_mod(parent)
         dataset.strip_object_status()
         mod = decode_mod(path, dataset)
         mod.parent = parent
@@ -74,7 +74,15 @@ class MainFrame(wx.Frame):
         self.listbox.DeleteAllItems()
         for mod in self.mods:
             if mod.path not in self.mod_db: # Make sure it's in the database
-                self.mod_db[mod.path] = {'enabled':True, 'index':0}
+                if mod.meta:
+                    self.mod_db[mod.path] = {}
+                    parent = [m for m in self.mods if mod.parent == m][0]
+                    # Place new mod after parent
+                    self.mod_db[mod.path]['index'] = self.mod_db[parent.path]['index'] + 1
+                    # Enable new mod if and only if parent is enabled
+                    self.mod_db[mod.path]['enabled'] = self.mod_db[parent.path]['enabled']
+                else:
+                    self.mod_db[mod.path] = {'enabled':True, 'index':0}
         self.mods.sort(key=lambda m: self.mod_db[m.path]['index'])
         for i, mod in enumerate(self.mods):
             self.listbox.Append((u'\u2713' if self.mod_db[mod.path]['enabled'] else ' ', mod.name, len(mod.added_objects), len(mod.modified_objects), len(mod.deleted_objects)))
@@ -314,10 +322,6 @@ class MainFrame(wx.Frame):
             fname = encode_filename(name)
             path = str(os.path.join('mods', fname))
             encode_mod(Mod(name, path, self.core_dataset, [], parent=mod))
-            # Place new mod after parent
-            self.mod_db[path]['index'] = self.mod_db[mod.path]['index'] + 1
-            # Enable new mod if and only if parent is enabled
-            self.mod_db[path]['enabled'] = self.mod_db[mod.path]['enabled']
             self.reload_mods()
             
     def split_mod(self, event):
@@ -344,6 +348,7 @@ class MainFrame(wx.Frame):
                                   'Delete mod',style=wx.OK|wx.CANCEL)
         if dialog.ShowModal() == wx.ID_OK:
             os.remove(mod.path)
+            del self.mod_db[mod.path]
         self.reload_mods()
         
     def export_dfmod(self, event):
