@@ -8,13 +8,13 @@
 import  string
 import  wx
 
-from frame import ExtendedFrame
+import frame
 from decode import *
 from encode import *
 
 #---------------------------------------------------------------------------
 
-class TreeCtrlPanel(wx.Panel):
+class TreeCtrlPanel(wx.Panel, frame.TreeController):
     def __init__(self, parent, log, mod, original):
         # Use the WANTS_CHARS style so the panel doesn't eat the Return key.
         wx.Panel.__init__(self, parent, -1, style=wx.WANTS_CHARS)
@@ -26,13 +26,7 @@ class TreeCtrlPanel(wx.Panel):
         self.tree = wx.TreeCtrl(self, tID, wx.DefaultPosition, wx.DefaultSize,
                                     wx.TR_HAS_BUTTONS | wx.TR_EDIT_LABELS | wx.TR_MULTIPLE)
 
-        isize = (16,16)
-        il = wx.ImageList(isize[0], isize[1])
-        fldridx   = il.Add(wx.ArtProvider_GetBitmap(wx.ART_FOLDER,  wx.ART_OTHER, isize))
-        fldropenidx = il.Add(wx.ArtProvider_GetBitmap(wx.ART_FILE_OPEN, wx.ART_OTHER,isize))
-        self.fileidx   = il.Add(wx.ArtProvider_GetBitmap(wx.ART_REPORT_VIEW, wx.ART_OTHER,isize))
-
-        self.tree.SetImageList(il)
+        self.init_image_list()
         
         
         types = {}
@@ -45,23 +39,14 @@ class TreeCtrlPanel(wx.Panel):
                 types[object.type] = []
             types[object.type].append(object)
 
-        self.root = self.tree.AddRoot("Mod 1" if original else "Mod 2")
-        self.tree.SetPyData(self.root, {"type":"container"})
-        self.tree.SetItemImage(self.root, fldridx, wx.TreeItemIcon_Normal)
-        self.tree.SetItemImage(self.root, fldropenidx, wx.TreeItemIcon_Expanded)
+        self.add_root("Mod 1" if original else "Mod 2")
 
         for type in sorted(types.keys()):
-            child = self.tree.AppendItem(self.root, type)
+            child = self.add_folder(self.root, type)
             self.headers[type] = child
-            self.tree.SetPyData(child, {"type":"container"})
-            self.tree.SetItemImage(child, fldridx, wx.TreeItemIcon_Normal)
-            self.tree.SetItemImage(child, fldropenidx, wx.TreeItemIcon_Expanded)
             if original:
                 for object in sorted(types[type], key=lambda o: self.object_title(o)):
-                    item = self.tree.AppendItem(child, self.object_title(object))
-                    self.tree.SetPyData(item,{"type":"item",'object':object})
-                    self.tree.SetItemImage(item, self.fileidx, wx.TreeItemIcon_Normal)
-                    self.tree.SetItemImage(item, self.fileidx, wx.TreeItemIcon_Selected)
+                    self.add_item(child, self.object_title(object))
 
                     
         self.tree.Expand(self.root)
@@ -130,7 +115,7 @@ class MyLog:
     def WriteText(self, text):
         print text
 
-class ModSplitterFrame(ExtendedFrame):
+class ModSplitterFrame(frame.ExtendedFrame):
     def __init__(self, parent, mod, core_dataset):
         wx.Frame.__init__(self, parent, title="Mod Splitter", size=(800, 600))
         log = MyLog()

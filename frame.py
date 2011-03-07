@@ -1,4 +1,5 @@
 import wx
+import images
 
 class ExtendedFrame(wx.Frame):
     ''' The ExtendedFrame class adds a few convenience methods to the Frame class
@@ -37,5 +38,38 @@ class ExtendedFrame(wx.Frame):
         dialog = wx.MessageDialog(self, ''.join(traceback.format_exception_only(type, value)) + '\n' + ''.join(traceback.format_tb(tb)),
                                   'Fatal error', style=wx.OK|wx.ICON_ERROR)        
         dialog.ShowModal()
+        
+class TreeController(object):
+    ''' A tree controller has several convenience methods to manage a tree control, assumed
+    to be located in self.tree.'''
+    def init_image_list(self):
+        isize = (16,16)
+        il = wx.ImageList(isize[0], isize[1])
+        self.img_folder   = il.Add(wx.ArtProvider_GetBitmap(wx.ART_FOLDER,  wx.ART_OTHER, isize))
+        self.img_folder_open = il.Add(wx.ArtProvider_GetBitmap(wx.ART_FILE_OPEN, wx.ART_OTHER,isize))
+        self.img_file   = il.Add(wx.ArtProvider_GetBitmap(wx.ART_REPORT_VIEW, wx.ART_OTHER,isize))
+        self.img_tick = il.Add(images.tick.ConvertToBitmap(16))
+        self.img_cross = il.Add(images.cross.ConvertToBitmap(16))
+
+        self.tree.SetImageList(il)
+        self.il = il
+        
+    def add_root(self, title):
+        self.root = self.tree.AddRoot(title)
+        self.tree.SetPyData(self.root, {"type":"container"})
+        self.tree.SetItemImage(self.root, self.img_folder, wx.TreeItemIcon_Normal)
+        self.tree.SetItemImage(self.root, self.img_folder_open, wx.TreeItemIcon_Expanded)
+        
+    def add_folder(self, parent, title):
+        child = self.tree.AppendItem(parent, title)
+        self.tree.SetPyData(child, {"type":"container"})
+        self.tree.SetItemImage(child, self.img_folder, wx.TreeItemIcon_Normal)
+        self.tree.SetItemImage(child, self.img_folder_open, wx.TreeItemIcon_Expanded)
+        return child
     
+    def add_item(self, parent, title, object=None):
+        item = self.tree.AppendItem(parent, title)
+        self.tree.SetPyData(item,{"type":"item",'object':object})
+        self.tree.SetItemImage(item, self.img_file, wx.TreeItemIcon_Normal)
+        return item
     

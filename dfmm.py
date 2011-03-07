@@ -1,12 +1,12 @@
 import wx
 import shelve, sys, shutil, traceback
-from frame import ExtendedFrame
+import frame
 from decode import *
 from editor import *
 from split import *
 
 
-class MainFrame(ExtendedFrame):
+class MainFrame(frame.ExtendedFrame, frame.TreeController):
     
     def __init__(self, parent):
         wx.Frame.__init__(self, parent, title="DF Mod Manager", size=(500, 300))
@@ -39,7 +39,7 @@ class MainFrame(ExtendedFrame):
         self.core_dataset = decode_core()
         
         
-        self.listbox = wx.ListCtrl(self, wx.ID_ANY, pos=(0,0), size=(-1, -1), style=wx.LC_REPORT|wx.SUNKEN_BORDER|wx.LC_HRULES|wx.LC_SINGLE_SEL)
+        '''self.listbox = wx.ListCtrl(self, wx.ID_ANY, pos=(0,0), size=(-1, -1), style=wx.LC_REPORT|wx.SUNKEN_BORDER|wx.LC_HRULES|wx.LC_SINGLE_SEL)
         self.listbox.InsertColumn(0, 'On')
         self.listbox.InsertColumn(1, 'Name')
         self.listbox.InsertColumn(2, 'Added')
@@ -52,7 +52,13 @@ class MainFrame(ExtendedFrame):
         self.listbox.SetColumnWidth(4, 70)
         
         self.listbox.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.enable_mod)
-        self.listbox.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.mod_context_menu)
+        self.listbox.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.mod_context_menu)'''
+        
+        self.tree = wx.TreeCtrl(self, wx.ID_ANY, pos=(0,0), size=(-1, -1), style=wx.TR_HAS_BUTTONS)
+        
+        self.init_image_list()
+        self.tree.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.enable_mod)
+        self.tree.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.mod_context_menu)
         
         self.mod_db = shelve.open(os.path.join('mods','mods.db'), 'c', writeback=True)
 
@@ -107,7 +113,9 @@ class MainFrame(ExtendedFrame):
     
     @property
     def selected_mod(self):
-        return self.mods[self.listbox.GetFirstSelected()]
+        return self.tree.GetPyData(self.tree.GetSelection())['object']
+        #return self.mods[self.listbox.GetFirstSelected()]
+        
 
     # Mod loading methods
     
@@ -175,7 +183,8 @@ class MainFrame(ExtendedFrame):
         
     
     def update_mod_list(self):
-        self.listbox.DeleteAllItems()
+        self.tree.DeleteAllItems()
+        self.add_root("Mods")
         for mod in self.mods:
             if mod.path not in self.mod_db: # Make sure it's in the database
                 if mod.meta:
@@ -189,21 +198,28 @@ class MainFrame(ExtendedFrame):
                     self.mod_db[mod.path] = {'enabled':True, 'index':0}
         self.mods.sort(key=lambda m: self.mod_db[m.path]['index'])
         for i, mod in enumerate(self.mods):
-            self.listbox.Append((u'\u2713' if self.mod_db[mod.path]['enabled'] else ' ', mod.name, len(mod.added_objects), len(mod.modified_objects), len(mod.deleted_objects)))
+            #self.listbox.Append((u'\u2713' if self.mod_db[mod.path]['enabled'] else ' ', mod.name, len(mod.added_objects), len(mod.modified_objects), len(mod.deleted_objects))) 
+            item = self.add_item(self.root, '%s (%d)' % (mod.name, len(mod.objects)), mod)
+            if self.mod_db[mod.path]['enabled']:
+                self.tree.SetItemImage(item, self.img_tick, wx.TreeItemIcon_Normal)
+            else:
+                self.tree.SetItemImage(item, self.img_cross, wx.TreeItemIcon_Normal)
             self.mod_db[mod.path]['index'] = i
+        self.tree.Expand(self.root)
         self.mod_db.sync()
 
 
     # Event handlers
 
-    def mod_clicked(self, event):
+    '''def mod_clicked(self, event):
         mod = self.selected_mod
         print dir(event)
         print event.GetX()
         if event.GetX() < 30:
-            self.enable_mod(None)
+            self.enable_mod(None)'''
         
     def mod_context_menu(self, event):
+        self.tree.SelectItem(event.GetItem())
         mod = self.selected_mod
         
         menu = wx.Menu()
