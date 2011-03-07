@@ -45,6 +45,18 @@ class ModEditorFrame(wx.Frame):
             if changed_objects != 0:
                 text += ' [%d]' % changed_objects
             self.nb.AddPage(ObjectTypePanel(self.nb, header, headers[header], self), text)
+            
+        # Set up the find/replace functions
+            
+        self.find_data =  wx.FindReplaceData()
+        self.find_data.SetFlags(wx.FR_DOWN)
+        self.find_open = False
+        self.Bind(wx.EVT_FIND, self.perform_find)
+        self.Bind(wx.EVT_FIND_NEXT, self.perform_find)
+        self.Bind(wx.EVT_FIND_REPLACE, self.perform_replace)
+        self.Bind(wx.EVT_FIND_REPLACE_ALL, self.perform_replace_all)
+        self.Bind(wx.EVT_FIND_CLOSE, self.find_closed)
+
         
         
     def load_templates(self):
@@ -56,6 +68,7 @@ class ModEditorFrame(wx.Frame):
             f = open(os.path.join('templates', fname))
             self.templates[object_type] = f.read()
             f.close()
+            
         
     def init_menu(self):
         
@@ -70,12 +83,23 @@ class ModEditorFrame(wx.Frame):
         
         self.objectmenu= wx.Menu()
         menu_add = self.objectmenu.Append(wx.ID_ANY, "&Add object\tCtrl-N","")
-        menu_delete = self.objectmenu.Append(wx.ID_ANY, "&Delete object","")
-        menu_revert = self.objectmenu.Append(wx.ID_ANY, "&Revert object","")
+        menu_delete = self.objectmenu.Append(wx.ID_ANY, "&Delete object\tDelete","")
+        menu_revert = self.objectmenu.Append(wx.ID_ANY, "&Revert object\tShift-Delete","")
         
+                
         self.Bind(wx.EVT_MENU, self.add_object, menu_add)
         self.Bind(wx.EVT_MENU, self.delete_object, menu_delete)
         self.Bind(wx.EVT_MENU, self.revert_object, menu_revert)
+        
+        self.editmenu = wx.Menu()
+        menu_find = self.editmenu.Append(wx.ID_ANY, "&Find...\tCtrl-F")
+        menu_replace = self.editmenu.Append(wx.ID_ANY, "&Replace...\tCtrl-R")
+        #menu_find_all = self.editmenu.Append(wx.ID_ANY, "&Find in All...\tCtrl-Shift-F")
+
+        self.Bind(wx.EVT_MENU, self.show_find, menu_find)
+        self.Bind(wx.EVT_MENU, self.show_replace, menu_replace)
+
+
         
         self.viewmenu = wx.Menu()
         self.menu_highlight = self.viewmenu.Append(wx.ID_ANY,"Highlight changes\tCtrl-H", kind=wx.ITEM_CHECK)
@@ -86,6 +110,7 @@ class ModEditorFrame(wx.Frame):
         
         menuBar = wx.MenuBar()
         menuBar.Append(self.filemenu,"&File")
+        menuBar.Append(self.editmenu, "&Edit")
         menuBar.Append(self.objectmenu,"&Object")
         menuBar.Append(self.viewmenu,"&View")
         self.SetMenuBar(menuBar)
@@ -96,6 +121,70 @@ class ModEditorFrame(wx.Frame):
     def view_core(self, event):
         self.nb.GetCurrentPage().listbox_clicked(None)
 
+        
+    def show_find(self, event):
+        if not self.find_open:
+            self.find_open = True
+            dialog = wx.FindReplaceDialog(self, self.find_data, 'Find',style=wx.FR_NOWHOLEWORD)
+            dialog.Show()
+        
+    def show_replace(self, event):
+        if not self.find_open:
+            self.find_open = True
+            dialog = wx.FindReplaceDialog(self, self.find_data, 'Find', style=wx.FR_REPLACEDIALOG|wx.FR_NOWHOLEWORD)
+            dialog.Show()
+        
+        
+    def perform_find(self, event):
+        editor = self.nb.GetCurrentPage().editor
+        value = editor.GetValue()
+        find_text = event.GetFindString()
+        flags = event.GetFlags()
+        pos = editor.GetInsertionPoint()
+        if not wx.FR_MATCHCASE & flags:
+            find_text = find_text.upper()
+            value = value.upper()
+        if wx.FR_DOWN & flags:
+            pos = value.find(find_text, pos+1)
+        else:
+            pos = value.rfind(find_text, 0, pos-1)
+        
+        if pos > -1:
+            editor.SetSelection(pos, pos+len(find_text))
+            editor.SetFocus()
+            
+    def perform_replace(self, event):
+        editor = self.nb.GetCurrentPage().editor
+        find_text = event.GetFindString()
+        replace_text = event.GetReplaceString()
+        selected_text = editor.GetStringSelection()
+        if find_text == selected_text:
+            pos = editor.GetInsertionPoint()
+            editor.Replace(pos, pos+len(find_text), replace_text)
+            
+    def perform_replace_all(self, event):
+        editor = self.nb.GetCurrentPage().editor
+        value = editor.GetValue()
+        find_text = event.GetFindString()
+        replace_text = event.GetReplaceString()
+        flags = event.GetFlags()
+        if not wx.FR_MATCHCASE & flags:
+            find_text = find_text.upper()
+            value = value.upper()
+        pos = value.find(find_text, 0)
+        while pos != -1:
+            editor.Replace(pos, pos+len(find_text), replace_text)
+            value = editor.GetValue()
+            if not wx.FR_MATCHCASE & flags:
+                value = value.upper()
+            pos += len(replace_text)+1
+            pos = value.find(find_text, pos)
+
+        
+        
+    def find_closed(self, event):
+        self.find_open = False
+        event.GetDialog().Destroy()
         
         
     def add_object(self, event):
@@ -224,9 +313,11 @@ class ObjectTypePanel(wx.Panel):
         self.PopupMenu(menu, event.GetPoint())
 
     def listbox_clicked(self, event):
-        i = self.listbox.GetSelections()[0]
+        sel = self.listbox.GetSelections()
+        if not sel:
+            return
+        i = sel[0]
         object = self.objects[i]
-        
 
         if self.root_frame.menu_core.IsChecked():
             self.editor.SetBackgroundColour(wx.Colour(200,200,200))
@@ -307,7 +398,7 @@ if __name__ == '__main__':
     
     core_dataset = decode_core()
     
-    frame = ModEditorFrame(None, core_dataset, decode_mod('mods/test.dfmod', core_dataset))
+    frame = ModEditorFrame(None, decode_mod('mods/edit-steel.dfmod', core_dataset))
     
     
 
