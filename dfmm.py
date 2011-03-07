@@ -57,7 +57,7 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         self.tree = wx.TreeCtrl(self, wx.ID_ANY, pos=(0,0), size=(-1, -1), style=wx.TR_HAS_BUTTONS)
         
         self.init_image_list()
-        self.tree.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.enable_mod)
+        self.tree.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.toggle_mod)
         self.tree.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.mod_context_menu)
         
         self.mod_db = shelve.open(os.path.join('mods','mods.db'), 'c', writeback=True)
@@ -115,6 +115,8 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
     def selected_mod(self):
         return self.tree.GetPyData(self.tree.GetSelection())['object']
         #return self.mods[self.listbox.GetFirstSelected()]
+        
+    
         
 
     # Mod loading methods
@@ -197,26 +199,26 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
                 else:
                     self.mod_db[mod.path] = {'enabled':True, 'index':0}
         self.mods.sort(key=lambda m: self.mod_db[m.path]['index'])
+        
         for i, mod in enumerate(self.mods):
             #self.listbox.Append((u'\u2713' if self.mod_db[mod.path]['enabled'] else ' ', mod.name, len(mod.added_objects), len(mod.modified_objects), len(mod.deleted_objects))) 
-            item = self.add_item(self.root, '%s (%d)' % (mod.name, len(mod.objects)), mod)
+            if mod.parent:
+                parent = mod.parent.item
+            else:
+                parent = self.root
+            item = self.add_item(parent, '%s (%d)' % (mod.name, len(mod.objects)), mod)
+            mod.item = item
             if self.mod_db[mod.path]['enabled']:
                 self.tree.SetItemImage(item, self.img_tick, wx.TreeItemIcon_Normal)
             else:
                 self.tree.SetItemImage(item, self.img_cross, wx.TreeItemIcon_Normal)
             self.mod_db[mod.path]['index'] = i
+            
         self.tree.Expand(self.root)
         self.mod_db.sync()
 
 
     # Event handlers
-
-    '''def mod_clicked(self, event):
-        mod = self.selected_mod
-        print dir(event)
-        print event.GetX()
-        if event.GetX() < 30:
-            self.enable_mod(None)'''
         
     def mod_context_menu(self, event):
         self.tree.SelectItem(event.GetItem())
@@ -244,7 +246,7 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
             menu_export_files.Enable(False)
         menu_delete = menu.Append(wx.ID_ANY, "&Delete mod","")
         
-        self.Bind(wx.EVT_MENU, self.enable_mod, menu_enable)
+        self.Bind(wx.EVT_MENU, self.toggle_mod, menu_enable)
         self.Bind(wx.EVT_MENU, self.move_mod_up, menu_up)
         self.Bind(wx.EVT_MENU, self.move_mod_down, menu_down)
         self.Bind(wx.EVT_MENU, self.export_dfmod, menu_export_dfmod)
@@ -257,24 +259,27 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         
         self.PopupMenu(menu, event.GetPoint())
         
-    def enable_mod(self, event):
+    def toggle_mod(self, event):
         mod = self.selected_mod
-        self.mod_db[mod.path]['enabled'] = not self.mod_db[mod.path]['enabled']
-        
         if self.mod_db[mod.path]['enabled']:
-            # Enable the parent mod if a metamod
-            for other_mod in self.mods:
-                if mod.parent == other_mod:
-                    self.mod_db[other_mod.path]['enabled'] = True
+            self.disable_mod(mod)
         else:
-            # Disable metamods as well
-            for other_mod in self.mods:
-                if other_mod.parent == mod:
-                    self.mod_db[other_mod.path]['enabled'] = False
-        self.mod_db.sync()
-        self.update_mod_list()
+            self.enable_mod(mod)
+            
+    def enable_mod(self, mod):
+        self.mod_db[mod.path]['enabled'] = True
+        self.tree.SetItemImage(mod.item, self.img_tick, wx.TreeItemIcon_Normal)
+        for other_mod in self.mods:
+            if mod.parent == other_mod:
+                self.enable_mod(other_mod)
         
-        
+    def disable_mod(self, mod):
+        self.mod_db[mod.path]['enabled'] = False
+        self.tree.SetItemImage(mod.item, self.img_cross, wx.TreeItemIcon_Normal)
+        for other_mod in self.mods:
+            if other_mod.parent == mod:
+                self.disable_mod(other_mod)
+                
     def move_mod(self, dir):
         mod = self.selected_mod
         i = self.mod_db[mod.path]['index']

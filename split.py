@@ -46,7 +46,7 @@ class TreeCtrlPanel(wx.Panel, frame.TreeController):
             self.headers[type] = child
             if original:
                 for object in sorted(types[type], key=lambda o: self.object_title(o)):
-                    self.add_item(child, self.object_title(object))
+                    self.add_item(child, self.object_title(object), object)
 
                     
         self.tree.Expand(self.root)
@@ -86,10 +86,7 @@ class TreeCtrlPanel(wx.Panel, frame.TreeController):
             self.sibling.objects.append(object)
             self.tree.Delete(item)
             folder = self.sibling.headers[object.type]
-            newitem = self.sibling.tree.AppendItem(folder , self.object_title(object))
-            self.tree.SetPyData(newitem,{"type":"item",'object':object})
-            self.tree.SetItemImage(newitem, self.fileidx, wx.TreeItemIcon_Normal)
-            self.tree.SetItemImage(newitem, self.fileidx, wx.TreeItemIcon_Selected)
+            newitem = self.sibling.add_item(folder, self.object_title(object), object)
             self.sibling.tree.Expand(folder)
             
     def expand_sibling(self, event):
