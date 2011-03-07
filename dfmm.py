@@ -8,96 +8,6 @@ from split import *
 
 class MainFrame(ExtendedFrame):
     
-    def reload_mods(self):
-        #self.mods = decode_all_mods(self.core_dataset)
-        self.mods = []
-        notified = False
-        mod_headers = {}
-        # First, let's read the headers of all the mods
-        for mod in get_mod_list():
-            path = os.path.join('mods', mod)
-            mod_headers[path] = decode_mod_headers(path)
-            
-        # Now, let's verify the checksums of all the mods and update if needed
-        core_checksum = str(self.core_dataset.checksum())
-        for mod, headers in mod_headers.items():
-            if 'meta' in headers:
-                continue # Verify only core files for now
-            if headers['checksum'] != core_checksum:
-                if not notified:
-                    notified = True
-                    print 'Updating mods...'
-                    self.info_dialog('DFMM has detected a change in your core files. The patches defined in your mods will be re-rolled. Depending on the number and size of your mods, this may take several minutes. Watch the console window for possible notifications about changes that cannot be applied to the new files.', 'Core files changed')
-                print 'Processing mod "%s"...' % mod
-                mod = decode_mod(mod, self.core_dataset)
-                encode_mod(mod, overwrite=True)
-        if notified:
-            print 'Done updating mods.'
-            
-        # First, process the normal mods. This makes them available for the
-        # metamods to reference
-        for path, headers in mod_headers.items():
-            if 'meta' not in headers:
-                self.load_normal_mod(path)
-                
-        # Then, the metamods
-        for path, headers in mod_headers.items():
-            if 'meta' in headers:
-                self.load_metamod(path, headers)
-                
-        self.update_mod_list()
-        
-    def load_normal_mod(self, path):
-        mod = decode_mod(path, self.core_dataset)
-        self.mods.append(mod)
-        return mod
-        
-    def load_metamod(self, path, headers=None):
-        if not headers:
-            headers = decode_mod_headers(path)
-        parent_path = headers['meta']
-        parent = [mod for mod in self.mods if os.path.split(mod.path)[-1] == parent_path]
-        if len(parent) == 0:
-            self.warning_dialog('The metamod "%s" could not be loaded because the the file it references, "%s", was not found.' % (path, parent_path), 'Mod not loaded')
-            return
-        parent = parent[0]
-        dataset = copy.deepcopy(self.core_dataset)
-        dataset.apply_mod(parent)
-        dataset.strip_object_status()
-        mod = decode_mod(path, dataset)
-        mod.parent = parent
-        self.mods.append(mod)
-        return mod
-            
-        
-    
-    def update_mod_list(self):
-        self.listbox.DeleteAllItems()
-        for mod in self.mods:
-            if mod.path not in self.mod_db: # Make sure it's in the database
-                if mod.meta:
-                    self.mod_db[mod.path] = {}
-                    parent = [m for m in self.mods if mod.parent == m][0]
-                    # Place new mod after parent
-                    self.mod_db[mod.path]['index'] = self.mod_db[parent.path]['index'] + 1
-                    # Enable new mod if and only if parent is enabled
-                    self.mod_db[mod.path]['enabled'] = self.mod_db[parent.path]['enabled']
-                else:
-                    self.mod_db[mod.path] = {'enabled':True, 'index':0}
-        self.mods.sort(key=lambda m: self.mod_db[m.path]['index'])
-        for i, mod in enumerate(self.mods):
-            self.listbox.Append((u'\u2713' if self.mod_db[mod.path]['enabled'] else ' ', mod.name, len(mod.added_objects), len(mod.modified_objects), len(mod.deleted_objects)))
-            self.mod_db[mod.path]['index'] = i
-        self.mod_db.sync()
-
-    def show_current_exception(self):
-        self.show_exception_dialog(*sys.exc_info())
-    
-    def show_exception_dialog(self, type, value, tb):
-        dialog = wx.MessageDialog(self, ''.join(traceback.format_exception_only(type, value)) + '\n' + ''.join(traceback.format_tb(tb)),
-                                  'Fatal error', style=wx.OK|wx.ICON_ERROR)        
-        dialog.ShowModal()
-    
     def __init__(self, parent):
         wx.Frame.__init__(self, parent, title="DF Mod Manager", size=(500, 300))
         
@@ -193,15 +103,108 @@ class MainFrame(ExtendedFrame):
         menuBar.Append(self.optionsmenu,"&Options")
         self.SetMenuBar(menuBar)
         
+    # Basic methods
+    
+    @property
+    def selected_mod(self):
+        return self.mods[self.listbox.GetFirstSelected()]
+
+    # Mod loading methods
+    
+    def reload_mods(self):
+        #self.mods = decode_all_mods(self.core_dataset)
+        self.mods = []
+        notified = False
+        mod_headers = {}
+        # First, let's read the headers of all the mods
+        for mod in get_mod_list():
+            path = os.path.join('mods', mod)
+            mod_headers[path] = decode_mod_headers(path)
+            
+        # Now, let's verify the checksums of all the mods and update if needed
+        core_checksum = str(self.core_dataset.checksum())
+        for mod, headers in mod_headers.items():
+            if 'meta' in headers:
+                continue # Verify only core files for now
+            if headers['checksum'] != core_checksum:
+                if not notified:
+                    notified = True
+                    print 'Updating mods...'
+                    self.info_dialog('DFMM has detected a change in your core files. The patches defined in your mods will be re-rolled. Depending on the number and size of your mods, this may take several minutes. Watch the console window for possible notifications about changes that cannot be applied to the new files.', 'Core files changed')
+                print 'Processing mod "%s"...' % mod
+                mod = decode_mod(mod, self.core_dataset)
+                encode_mod(mod, overwrite=True)
+        if notified:
+            print 'Done updating mods.'
+            
+        # First, process the normal mods. This makes them available for the
+        # metamods to reference
+        for path, headers in mod_headers.items():
+            if 'meta' not in headers:
+                self.load_normal_mod(path)
+                
+        # Then, the metamods
+        for path, headers in mod_headers.items():
+            if 'meta' in headers:
+                self.load_metamod(path, headers)
+                
+        self.update_mod_list()
+        
+    def load_normal_mod(self, path):
+        mod = decode_mod(path, self.core_dataset)
+        self.mods.append(mod)
+        return mod
+        
+    def load_metamod(self, path, headers=None):
+        if not headers:
+            headers = decode_mod_headers(path)
+        parent_path = headers['meta']
+        parent = [mod for mod in self.mods if os.path.split(mod.path)[-1] == parent_path]
+        if len(parent) == 0:
+            self.warning_dialog('The metamod "%s" could not be loaded because the the file it references, "%s", was not found.' % (path, parent_path), 'Mod not loaded')
+            return
+        parent = parent[0]
+        dataset = copy.deepcopy(self.core_dataset)
+        dataset.apply_mod(parent)
+        dataset.strip_object_status()
+        mod = decode_mod(path, dataset)
+        mod.parent = parent
+        self.mods.append(mod)
+        return mod
+            
+        
+    
+    def update_mod_list(self):
+        self.listbox.DeleteAllItems()
+        for mod in self.mods:
+            if mod.path not in self.mod_db: # Make sure it's in the database
+                if mod.meta:
+                    self.mod_db[mod.path] = {}
+                    parent = [m for m in self.mods if mod.parent == m][0]
+                    # Place new mod after parent
+                    self.mod_db[mod.path]['index'] = self.mod_db[parent.path]['index'] + 1
+                    # Enable new mod if and only if parent is enabled
+                    self.mod_db[mod.path]['enabled'] = self.mod_db[parent.path]['enabled']
+                else:
+                    self.mod_db[mod.path] = {'enabled':True, 'index':0}
+        self.mods.sort(key=lambda m: self.mod_db[m.path]['index'])
+        for i, mod in enumerate(self.mods):
+            self.listbox.Append((u'\u2713' if self.mod_db[mod.path]['enabled'] else ' ', mod.name, len(mod.added_objects), len(mod.modified_objects), len(mod.deleted_objects)))
+            self.mod_db[mod.path]['index'] = i
+        self.mod_db.sync()
+
+
+    # Event handlers
+
     def mod_clicked(self, event):
-        mod = self.mods[self.listbox.GetFirstSelected()]
+        mod = self.selected_mod
         print dir(event)
         print event.GetX()
         if event.GetX() < 30:
             self.enable_mod(None)
         
     def mod_context_menu(self, event):
-        mod = self.mods[self.listbox.GetFirstSelected()]
+        mod = self.selected_mod
         
         menu = wx.Menu()
         
@@ -239,7 +242,7 @@ class MainFrame(ExtendedFrame):
         self.PopupMenu(menu, event.GetPoint())
         
     def enable_mod(self, event):
-        mod = self.mods[self.listbox.GetFirstSelected()]
+        mod = self.selected_mod
         self.mod_db[mod.path]['enabled'] = not self.mod_db[mod.path]['enabled']
         
         if self.mod_db[mod.path]['enabled']:
@@ -257,7 +260,7 @@ class MainFrame(ExtendedFrame):
         
         
     def move_mod(self, dir):
-        mod = self.mods[self.listbox.GetFirstSelected()]
+        mod = self.selected_mod
         i = self.mod_db[mod.path]['index']
         old_mods = [m for m in self.mods if self.mod_db[m.path]['index'] == i + dir]
         if old_mods:
@@ -292,8 +295,7 @@ class MainFrame(ExtendedFrame):
             self.reload_mods()
             
     def create_metamod(self, event):
-        i = self.listbox.GetFirstSelected()
-        mod = self.mods[i]
+        mod = self.selected_mod
         name = self.text_entry_dialog('Enter name for meta mod', 'New mod', default=mod.name + ': ')
         if name:
             fname = encode_filename(name)
@@ -302,22 +304,19 @@ class MainFrame(ExtendedFrame):
             self.reload_mods()
             
     def split_mod(self, event):
-        i = self.listbox.GetFirstSelected()
-        mod = self.mods[i]
+        mod = self.selected_mod
         frame = ModSplitterFrame(self, mod, self.core_dataset)
         frame.Show()
         frame.SetSize((800,600))
 
         
     def edit_mod(self, event):
-        i = self.listbox.GetFirstSelected()
-        mod = self.mods[i]
+        mod = self.selected_mod
         frame = ModEditorFrame(self, mod)
         frame.Show()
         
     def delete_mod(self, event):
-        i = self.listbox.GetFirstSelected()
-        mod = self.mods[i]
+        mod = self.selected_mod
         if [m for m in self.mods if m.parent == mod]:
             self.warning_dialog('Cannot delete "%s" because it has metamods. Delete them first.' % mod.name, 'Delete failed')
             return
@@ -329,8 +328,7 @@ class MainFrame(ExtendedFrame):
         self.reload_mods()
         
     def export_dfmod(self, event):
-        i = self.listbox.GetFirstSelected()
-        mod = self.mods[i]
+        mod = self.selected_mod
         dialog = wx.FileDialog(self, 'Select File', wildcard='*.dfmod', style=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
         if dialog.ShowModal() == wx.ID_OK:
             path = dialog.GetPath()
@@ -339,8 +337,7 @@ class MainFrame(ExtendedFrame):
             encode_mod(new_mod)
             
     def export_dfmod_zip(self, event):
-        i = self.listbox.GetFirstSelected()
-        mod = self.mods[i]
+        mod = self.selected_mod
         dialog = wx.FileDialog(self, 'Select File', wildcard='*.zip', style=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
         if dialog.ShowModal() == wx.ID_OK:
             path = dialog.GetPath()
@@ -351,9 +348,8 @@ class MainFrame(ExtendedFrame):
             encode_mods(mods, path)
             
     def export_files(self, event):
+        mod = self.selected_mod
         dialog = wx.DirDialog(self, 'Select directory')
-        i = self.listbox.GetFirstSelected()
-        mod = self.mods[i]
         if dialog.ShowModal() == wx.ID_OK:
             dataset = copy.deepcopy(self.core_dataset)
             dataset.apply_mod(mod)

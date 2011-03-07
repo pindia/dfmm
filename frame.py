@@ -29,3 +29,13 @@ class ExtendedFrame(wx.Frame):
         if dialog.ShowModal() == wx.ID_OK:
             return dialog.GetValue()
         return None
+    
+    def show_current_exception(self):
+        self.show_exception_dialog(*sys.exc_info())
+    
+    def show_exception_dialog(self, type, value, tb):
+        dialog = wx.MessageDialog(self, ''.join(traceback.format_exception_only(type, value)) + '\n' + ''.join(traceback.format_tb(tb)),
+                                  'Fatal error', style=wx.OK|wx.ICON_ERROR)        
+        dialog.ShowModal()
+    
+    
