@@ -1,11 +1,12 @@
 import wx
 import shelve, sys, shutil, traceback
+from frame import ExtendedFrame
 from decode import *
 from editor import *
 from split import *
 
 
-class MainFrame(wx.Frame):
+class MainFrame(ExtendedFrame):
     
     def reload_mods(self):
         #self.mods = decode_all_mods(self.core_dataset)
@@ -281,31 +282,7 @@ class MainFrame(wx.Frame):
         self.move_mod(+1)
 
         
-    def info_dialog(self, message, title):
-        dialog = wx.MessageDialog(self, message, title, style=wx.OK)
-        dialog.ShowModal()
-        
-    def warning_dialog(self, message, title):
-        dialog = wx.MessageDialog(self, message,title, style=wx.OK|wx.ICON_WARNING)        
-        dialog.ShowModal()
-        
-    def error_dialog(self, message, title):
-        dialog = wx.MessageDialog(self, message,title, style=wx.OK|wx.ICON_ERROR)        
-        dialog.ShowModal()
-        
-    def yes_no_dialog(self, message, title):
-        dialog = wx.MessageDialog(self, message, title, style=wx.YES|wx.NO)
-        return dialog.ShowModal() == wx.ID_YES
-        
-    def ok_cancel_dialog(self, message, title):
-        dialog = wx.MessageDialog(self, message, title, style=wx.OK|wx.CANCEL)
-        return dialog.ShowModal() == wx.ID_OK
-        
-    def text_entry_dialog(self, message, title, default=''):
-        dialog = wx.TextEntryDialog(self, message, title, default)
-        if dialog.ShowModal() == wx.ID_OK:
-            return dialog.GetValue()
-        return None
+
         
     def new_mod(self, event):
         name = self.text_entry_dialog('Enter name for new mod', 'New mod')

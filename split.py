@@ -8,6 +8,7 @@
 import  string
 import  wx
 
+from frame import ExtendedFrame
 from decode import *
 from encode import *
 
@@ -234,7 +235,7 @@ class MyLog:
     def WriteText(self, text):
         print text
 
-class ModSplitterFrame(wx.Frame):
+class ModSplitterFrame(ExtendedFrame):
     def __init__(self, parent, mod, core_dataset):
         wx.Frame.__init__(self, parent, title="Mod Splitter", size=(800, 600))
         log = MyLog()
@@ -283,14 +284,6 @@ class ModSplitterFrame(wx.Frame):
         self.vertical.Add(self.horizontal, 1, wx.EXPAND)
         self.vertical.Add(self.save_button, 0, wx.ALIGN_CENTER)
         self.SetSizerAndFit(self.vertical)
-        
-    def info_dialog(self, message, title):
-        dialog = wx.MessageDialog(self, message, title, style=wx.OK)
-        dialog.ShowModal()
-        
-    def ok_cancel_dialog(self, message, title):
-        dialog = wx.MessageDialog(self, message, title, style=wx.OK|wx.CANCEL)
-        return dialog.ShowModal() == wx.ID_OK
         
     def save_clicked(self, event):
         name1 = self.name1.GetValue()

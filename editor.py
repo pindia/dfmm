@@ -1,9 +1,10 @@
 import wx, copy
 import merge
+from frame import ExtendedFrame
 from encode import *
 from decode import *
 
-class ModEditorFrame(wx.Frame):
+class ModEditorFrame(ExtendedFrame):
     def __init__(self, parent, mod):
         
         title = 'Mod Editor: %s' % path_to_filename(mod.path)
@@ -152,6 +153,8 @@ class ModEditorFrame(wx.Frame):
         if pos > -1:
             editor.SetSelection(pos, pos+len(find_text))
             editor.SetFocus()
+        else:
+            self.info_dialog('Cannot find "%s"' % event.GetFindString(), 'Find')
             
     def perform_replace(self, event):
         editor = self.nb.GetCurrentPage().editor
