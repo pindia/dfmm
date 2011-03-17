@@ -31,6 +31,11 @@ class ExtendedFrame(wx.Frame):
             return dialog.GetValue()
         return None
     
+    def file_save_dialog(self, title, extension):
+        dialog = wx.FileDialog(self, title, wildcard='*.%s' % extension, style=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
+        if dialog.ShowModal() == wx.ID_OK:
+            return dialog.GetPath()
+    
     def show_current_exception(self):
         self.show_exception_dialog(*sys.exc_info())
     

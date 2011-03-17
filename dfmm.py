@@ -122,10 +122,13 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
     # Mod loading methods
     
     def reload_mods(self):
-        #self.mods = decode_all_mods(self.core_dataset)
+        ''' This method clears the currently loaded mod list and reloads every mod in
+        the mods directory. Should be used as rarely as possible due to long execution time'''
+        
         self.mods = []
         notified = False
         mod_headers = {}
+        
         # First, let's read the headers of all the mods
         for mod in get_mod_list():
             path = os.path.join('mods', mod)
@@ -185,27 +188,20 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         
     
     def update_mod_list(self):
+        ''' Adds loaded mods to the main mod tree. Can be called more frequently than
+        update_mod_list, but still introduces visible flashing. Does not reload mods.'''
+        
+        
         self.tree.DeleteAllItems()
         self.add_root("Mods")
         for mod in self.mods:
             if mod.path not in self.mod_db: # Make sure it's in the database
-                if mod.meta:
-                    self.mod_db[mod.path] = {}
-                    parent = [m for m in self.mods if mod.parent == m][0]
-                    # Place new mod after parent
-                    self.mod_db[mod.path]['index'] = self.mod_db[parent.path]['index'] + 1
-                    # Enable new mod if and only if parent is enabled
-                    self.mod_db[mod.path]['enabled'] = self.mod_db[parent.path]['enabled']
-                else:
-                    self.mod_db[mod.path] = {'enabled':True, 'index':0}
+                self.mod_db[mod.path] = {'enabled':False, 'index':0}
         self.mods.sort(key=lambda m: self.mod_db[m.path]['index'])
         
-        for i, mod in enumerate(self.mods):
-            #self.listbox.Append((u'\u2713' if self.mod_db[mod.path]['enabled'] else ' ', mod.name, len(mod.added_objects), len(mod.modified_objects), len(mod.deleted_objects))) 
-            if mod.parent:
-                parent = mod.parent.item
-            else:
-                parent = self.root
+        
+        # The common logic for both normal and meta mods
+        def process_mod(i, mod, parent):
             item = self.add_item(parent, '%s (%d)' % (mod.name, len(mod.objects)), mod)
             mod.item = item
             if self.mod_db[mod.path]['enabled']:
@@ -213,6 +209,13 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
             else:
                 self.tree.SetItemImage(item, self.img_cross, wx.TreeItemIcon_Normal)
             self.mod_db[mod.path]['index'] = i
+        
+        for i, mod in enumerate(self.mods):
+            if not mod.parent:
+                process_mod(i, mod, self.root)
+                for j, metamod in enumerate([m for m in self.mods if m.parent == mod]):
+                    process_mod(j, metamod, mod.item)
+            
             
         self.tree.Expand(self.root)
         self.mod_db.sync()
@@ -239,12 +242,17 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         menu.AppendSeparator()
         menu_edit = menu.Append(wx.ID_ANY, "&Edit mod","")
         menu_split = menu.Append(wx.ID_ANY, "&Split mod","")
+        menu_delete = menu.Append(wx.ID_ANY, "&Delete mod","")
+        
+        menu.AppendSeparator()
         menu_meta = menu.Append(wx.ID_ANY, "&Create metamod","")
+        menu_import_meta = menu.Append(wx.ID_ANY, "&Import metamod","")
+
         if mod.meta:
+            menu_import_meta.Enable(False)
             menu_meta.Enable(False)
             menu_export_dfmod_zip.Enable(False)
             menu_export_files.Enable(False)
-        menu_delete = menu.Append(wx.ID_ANY, "&Delete mod","")
         
         self.Bind(wx.EVT_MENU, self.toggle_mod, menu_enable)
         self.Bind(wx.EVT_MENU, self.move_mod_up, menu_up)
@@ -255,6 +263,7 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         self.Bind(wx.EVT_MENU, self.split_mod, menu_split)
         self.Bind(wx.EVT_MENU, self.edit_mod, menu_edit)
         self.Bind(wx.EVT_MENU, self.create_metamod, menu_meta)
+        self.Bind(wx.EVT_MENU, self.import_metamod, menu_import_meta)
         self.Bind(wx.EVT_MENU, self.delete_mod, menu_delete)
         
         self.PopupMenu(menu, event.GetPoint())
@@ -324,6 +333,27 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
             encode_mod(Mod(name, path, self.core_dataset, [], parent=mod))
             self.reload_mods()
             
+    def import_metamod(self, event):
+        mod = self.selected_mod
+        if self.ok_cancel_dialog('The "import metamod" command is very specialized. Only use it if:\n\n1. You have an existing mod that you have already imported and have selected this option from\n2.You have made modifications to the raw files of this mod that are not present in the previous import\n3. You wish to import these changes as a metamod to the existing mod. \n\nYou will need to locate the modified files in the next dialog. Proceed?', 'Import metamod'):
+            dialog = wx.DirDialog(self, 'Select directory', style=wx.DD_DIR_MUST_EXIST)
+            if dialog.ShowModal() == wx.ID_OK:
+                path = dialog.GetPath()
+                name = self.text_entry_dialog('Enter name for imported metamod', 'Import metamod', default=mod.name + ': ')
+                if name:
+                    parent_dataset = copy.deepcopy(self.core_dataset)
+                    parent_dataset.apply_mod(mod)
+                    parent_dataset.strip_object_status()
+                    mod_dataset = decode_directory(path)
+                    
+                    fname = encode_filename(name)
+                    save_path = str(os.path.join('mods', fname))
+                                        
+                    metamod = Mod(name, save_path, parent_dataset, parent_dataset.difference(mod_dataset), parent=mod)                    
+                    encode_mod(metamod)
+                    
+                    self.reload_mods()
+                
     def split_mod(self, event):
         mod = self.selected_mod
         frame = ModSplitterFrame(self, mod, self.core_dataset)
