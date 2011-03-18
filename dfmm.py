@@ -39,21 +39,6 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         self.core_dataset = decode_core()
         
         
-        '''self.listbox = wx.ListCtrl(self, wx.ID_ANY, pos=(0,0), size=(-1, -1), style=wx.LC_REPORT|wx.SUNKEN_BORDER|wx.LC_HRULES|wx.LC_SINGLE_SEL)
-        self.listbox.InsertColumn(0, 'On')
-        self.listbox.InsertColumn(1, 'Name')
-        self.listbox.InsertColumn(2, 'Added')
-        self.listbox.InsertColumn(3, 'Modified')
-        self.listbox.InsertColumn(4, 'Deleted')
-        self.listbox.SetColumnWidth(0, 40)
-        self.listbox.SetColumnWidth(1, 150)
-        self.listbox.SetColumnWidth(2, 70)
-        self.listbox.SetColumnWidth(3, 70)
-        self.listbox.SetColumnWidth(4, 70)
-        
-        self.listbox.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.enable_mod)
-        self.listbox.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.mod_context_menu)'''
-        
         self.tree = wx.TreeCtrl(self, wx.ID_ANY, pos=(0,0), size=(-1, -1), style=wx.TR_HAS_BUTTONS)
         
         self.init_image_list()
@@ -63,9 +48,11 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         self.tree.Bind(wx.EVT_TREE_END_DRAG, self.end_drag)
         
         self.mod_db = shelve.open(os.path.join('mods','mods.db'), 'c', writeback=True)
+        
+        self.update_title()
 
         
-        self.reload_mods()
+        self.reload_mods(initial=True)
         
         
         self.filemenu = wx.Menu()
@@ -123,9 +110,12 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
 
     # Mod loading methods
     
-    def reload_mods(self):
+    def reload_mods(self, initial=False):
         ''' This method clears the currently loaded mod list and reloads every mod in
         the mods directory. Should be used as rarely as possible due to long execution time'''
+        
+        if not initial: # If we're not loading for the first time, something's been changed!
+            self.dirty = True
         
         self.mods = []
         notified = False
@@ -258,6 +248,7 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         self.mod_db[target_mod.path]['index'] = i
         self.mod_db.sync()
         self.update_mod_list()
+        self.dirty = True
 
         
         
@@ -308,6 +299,7 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
             self.disable_mod(mod)
         else:
             self.enable_mod(mod)
+        self.dirty = True
             
     def enable_mod(self, mod):
         self.mod_db[mod.path]['enabled'] = True
@@ -502,6 +494,7 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         for f in current_files:
             os.remove(os.path.join(path, f))
         encode_objects(dataset.objects, path)
+        self.dirty = False
         print 'Install complete'
         
     def merge(self, event):
@@ -527,6 +520,23 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
             self.options_menu[option].Check(self.mod_db[option])
             self.mod_db.sync()
         return perform_toggle
+    
+    def set_dirty(self, dirty):
+        self.mod_db['_dirty'] = dirty
+        self.mod_db.sync()
+        self.update_title()
+        
+    def update_title(self):
+        if self.dirty:
+            self.SetTitle('DF Mod Manager (uninstalled changes)')
+        else:
+            self.SetTitle('DF Mod Manager')
+
+        
+    def get_dirty(self):
+        return self.mod_db['_dirty']
+        
+    dirty = property(get_dirty, set_dirty)
         
 if __name__ == '__main__':
     app = wx.App(False)
