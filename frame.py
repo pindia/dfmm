@@ -78,3 +78,10 @@ class TreeController(object):
         self.tree.SetItemImage(item, self.img_file, wx.TreeItemIcon_Normal)
         return item
     
+    def item_children(self, parent):
+        ''' Generator expression for iterating over the children of a tree item '''
+        item, cookie = self.tree.GetFirstChild(parent) 
+        while item:
+            yield item
+            item, cookie = self.tree.GetNextChild(parent, cookie)
+    

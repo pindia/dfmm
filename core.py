@@ -39,6 +39,7 @@ class DataSet(object):
             core_object = core_dataset.get_object(object.root_type, object.type, object.name)
             if not current_object:
                 print 'Failed to apply edits to [%s:%s] from mod %s because the object does not exist' % (object.type, object.name, mod.name)
+                continue
             if current_object.deleted:
                 print 'Failed to apply edits to [%s:%s] from mod %s due to prior deletion' % (object.type, object.name, mod.name)
                 continue

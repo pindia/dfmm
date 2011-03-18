@@ -59,6 +59,8 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         self.init_image_list()
         self.tree.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.toggle_mod)
         self.tree.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.mod_context_menu)
+        self.tree.Bind(wx.EVT_TREE_BEGIN_DRAG, self.begin_drag)
+        self.tree.Bind(wx.EVT_TREE_END_DRAG, self.end_drag)
         
         self.mod_db = shelve.open(os.path.join('mods','mods.db'), 'c', writeback=True)
 
@@ -195,11 +197,9 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         expanded = []
 
         if hasattr(self, 'root'): # If we have already set up the tree, save the items
-            item, cookie = self.tree.GetFirstChild(self.root) 
-            while item:
+            for item in self.item_children(self.root):
                 if self.tree.IsExpanded(item):
-                    expanded.append(self.tree.GetItemPyData(item)['object'])
-                item, cookie = self.tree.GetNextChild(self.root, cookie)
+                    expanded.append(self.tree.GetItemPyData(item)['object'].path)
         
         self.tree.DeleteAllItems()
         self.add_root("Mods")
@@ -211,7 +211,7 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         
         # The common logic for both normal and meta mods
         def process_mod(i, mod, parent):
-            item = self.add_item(parent, '%s (%d)' % (mod.name, len(mod.objects)), mod)
+            item = self.add_item(parent, '%s (%d) (%d)' % (mod.name, len(mod.objects), self.mod_db[mod.path]['index']), mod)
             mod.item = item
             if self.mod_db[mod.path]['enabled']:
                 self.tree.SetItemImage(item, self.img_tick, wx.TreeItemIcon_Normal)
@@ -224,7 +224,7 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
                 process_mod(i, mod, self.root)
                 for j, metamod in enumerate([m for m in self.mods if m.parent == mod]):
                     process_mod(j, metamod, mod.item)
-            if mod in expanded:
+            if mod.path in expanded:
                 self.tree.Expand(mod.item)
             
             
@@ -233,6 +233,34 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
 
 
     # Event handlers
+    
+    
+    def begin_drag(self, event):
+        self.drag_item = event.GetItem()
+        if self.drag_item != self.root:
+            event.Allow()
+            
+    def end_drag(self, event):
+        target = event.GetItem()
+        if not hasattr(self, 'drag_item') or not self.drag_item.IsOk() or not target.IsOk():
+            return
+        target_mod = self.tree.GetPyData(target)['object']
+        mod = self.tree.GetPyData(self.drag_item)['object']
+        if mod.parent != target_mod.parent:
+            if mod.parent:
+                self.warning_dialog('A metamod may not be moved out of its parent.','Cannot move')
+            else:
+                self.warning_dialog('A normal mod may not be moved into a metamod position.','Cannot move')
+            return
+        # Perform the swap
+        i = self.mod_db[mod.path]['index']
+        self.mod_db[mod.path]['index'] = self.mod_db[target_mod.path]['index']
+        self.mod_db[target_mod.path]['index'] = i
+        self.mod_db.sync()
+        self.update_mod_list()
+
+        
+        
         
     def mod_context_menu(self, event):
         self.tree.SelectItem(event.GetItem())
@@ -243,9 +271,6 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         menu_enable = menu.Append(wx.ID_ANY, "Enable mod","", kind=wx.ITEM_CHECK)
         if self.mod_db[mod.path]['enabled']:
             menu_enable.Check()
-        menu.AppendSeparator()
-        menu_up = menu.Append(wx.ID_ANY, "Move up","")
-        menu_down = menu.Append(wx.ID_ANY, "Move down","")
         menu.AppendSeparator()
         menu_export_dfmod = menu.Append(wx.ID_ANY, "Export .dfmod","")
         menu_export_dfmod_zip = menu.Append(wx.ID_ANY, "Export .dfmod zip","")
@@ -266,8 +291,6 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
             menu_export_files.Enable(False)
         
         self.Bind(wx.EVT_MENU, self.toggle_mod, menu_enable)
-        self.Bind(wx.EVT_MENU, self.move_mod_up, menu_up)
-        self.Bind(wx.EVT_MENU, self.move_mod_down, menu_down)
         self.Bind(wx.EVT_MENU, self.export_dfmod, menu_export_dfmod)
         self.Bind(wx.EVT_MENU, self.export_dfmod_zip, menu_export_dfmod_zip)
         self.Bind(wx.EVT_MENU, self.export_files, menu_export_files)
@@ -300,33 +323,6 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
             if other_mod.parent == mod:
                 self.disable_mod(other_mod)
                 
-    def move_mod(self, dir):
-        mod = self.selected_mod
-        i = self.mod_db[mod.path]['index']
-        old_mods = [m for m in self.mods if self.mod_db[m.path]['index'] == i + dir]
-        if old_mods:
-            old_mod = old_mods[0]
-            if dir == 1 and old_mod.parent == mod:
-                self.warning_dialog('A mod may not be moved below one of its metamods.', 'Invalid move')
-                return
-            if dir == -1 and mod.parent == old_mod:
-                self.warning_dialog('A metamod may not be moved above its parent mod.', 'Invalid move')
-                return
-            self.mod_db[old_mod.path]['index'] = i
-            self.mod_db[mod.path]['index'] = i + dir
-            self.mod_db.sync()
-            self.update_mod_list()
-        else:
-            print 'Failed to move'
-            
-    def move_mod_up(self, event):
-        self.move_mod(-1)
-        
-    def move_mod_down(self, event):
-        self.move_mod(+1)
-
-        
-
         
     def new_mod(self, event):
         name = self.text_entry_dialog('Enter name for new mod', 'New mod')
@@ -480,13 +476,21 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
     
         
     def merge_selected_mods(self):
-        dataset = copy.deepcopy(self.core_dataset)
-        for mod in self.mods:
+        # Common logic for both normal and meta mods
+        def apply_item(item):
+            mod = self.tree.GetPyData(item)['object']
             if self.mod_db[mod.path]['enabled']:
                 dataset.apply_mod(mod,
                                     merge_changes=self.mod_db['_merge_changes'],
                                     partial_merge=self.mod_db['_partial_merge'],
                                     delete_override=self.mod_db['_delete_override'])
+            
+        dataset = copy.deepcopy(self.core_dataset)
+        for item in self.item_children(self.root):
+            apply_item(item)
+            for child in self.item_children(item):
+                apply_item(child)
+
         return dataset
         
     def install(self, event):
