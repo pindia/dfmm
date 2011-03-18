@@ -191,6 +191,15 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         ''' Adds loaded mods to the main mod tree. Can be called more frequently than
         update_mod_list, but still introduces visible flashing. Does not reload mods.'''
         
+        # Save the currently expanded items
+        expanded = []
+
+        if hasattr(self, 'root'): # If we have already set up the tree, save the items
+            item, cookie = self.tree.GetFirstChild(self.root) 
+            while item:
+                if self.tree.IsExpanded(item):
+                    expanded.append(self.tree.GetItemPyData(item)['object'])
+                item, cookie = self.tree.GetNextChild(self.root, cookie)
         
         self.tree.DeleteAllItems()
         self.add_root("Mods")
@@ -215,6 +224,8 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
                 process_mod(i, mod, self.root)
                 for j, metamod in enumerate([m for m in self.mods if m.parent == mod]):
                     process_mod(j, metamod, mod.item)
+            if mod in expanded:
+                self.tree.Expand(mod.item)
             
             
         self.tree.Expand(self.root)
