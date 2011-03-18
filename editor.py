@@ -74,7 +74,7 @@ class ModEditorFrame(ExtendedFrame):
     def init_menu(self):
         
         self.filemenu= wx.Menu()
-        menu_save = self.filemenu.Append(wx.ID_ANY, "&Save\tCtrl-S","")
+        menu_save = self.filemenu.Append(wx.ID_ANY, "&Save\tCtrl+S","")
         menu_save_and_exit = self.filemenu.Append(wx.ID_ANY, "Save and &exit","")
         menu_exit = self.filemenu.Append(wx.ID_ANY, "Exit without saving","")
         
@@ -83,9 +83,9 @@ class ModEditorFrame(ExtendedFrame):
         self.Bind(wx.EVT_MENU, self.save_and_exit, menu_save_and_exit)
         
         self.objectmenu= wx.Menu()
-        menu_add = self.objectmenu.Append(wx.ID_ANY, "&Add object\tCtrl-N","")
+        menu_add = self.objectmenu.Append(wx.ID_ANY, "&Add object\tCtrl+N","")
         menu_delete = self.objectmenu.Append(wx.ID_ANY, "&Delete object\tDelete","")
-        menu_revert = self.objectmenu.Append(wx.ID_ANY, "&Revert object\tShift-Delete","")
+        menu_revert = self.objectmenu.Append(wx.ID_ANY, "&Revert object\tShift+Delete","")
         
                 
         self.Bind(wx.EVT_MENU, self.add_object, menu_add)
@@ -93,8 +93,8 @@ class ModEditorFrame(ExtendedFrame):
         self.Bind(wx.EVT_MENU, self.revert_object, menu_revert)
         
         self.editmenu = wx.Menu()
-        menu_find = self.editmenu.Append(wx.ID_ANY, "&Find...\tCtrl-F")
-        menu_replace = self.editmenu.Append(wx.ID_ANY, "&Replace...\tCtrl-R")
+        menu_find = self.editmenu.Append(wx.ID_ANY, "&Find...\tCtrl+F")
+        menu_replace = self.editmenu.Append(wx.ID_ANY, "&Replace...\tCtrl+R")
         #menu_find_all = self.editmenu.Append(wx.ID_ANY, "&Find in All...\tCtrl-Shift-F")
 
         self.Bind(wx.EVT_MENU, self.show_find, menu_find)
@@ -103,9 +103,9 @@ class ModEditorFrame(ExtendedFrame):
 
         
         self.viewmenu = wx.Menu()
-        self.menu_highlight = self.viewmenu.Append(wx.ID_ANY,"Highlight changes\tCtrl-H", kind=wx.ITEM_CHECK)
+        self.menu_highlight = self.viewmenu.Append(wx.ID_ANY,"Highlight changes\tCtrl+H", kind=wx.ITEM_CHECK)
         self.menu_highlight.Check(True)
-        self.menu_core = self.viewmenu.Append(wx.ID_ANY,"View core data\tCtrl-D", kind=wx.ITEM_CHECK)
+        self.menu_core = self.viewmenu.Append(wx.ID_ANY,"View core data\tCtrl+D", kind=wx.ITEM_CHECK)
         self.Bind(wx.EVT_MENU, self.view_highlight, self.menu_highlight)
         self.Bind(wx.EVT_MENU, self.view_core, self.menu_core)
         

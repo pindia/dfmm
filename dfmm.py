@@ -56,10 +56,10 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         
         
         self.filemenu = wx.Menu()
-        menu_new = self.filemenu.Append(wx.ID_ANY, "&New mod\tCtrl-N","")
+        menu_new = self.filemenu.Append(wx.ID_ANY, "&New mod\tCtrl+N","")
         self.filemenu.AppendSeparator()
-        menu_merge = self.filemenu.Append(wx.ID_ANY, "&Merge mods\tCtrl-M","")
-        menu_install = self.filemenu.Append(wx.ID_ANY, "&Install mods\tCtrl-S","")
+        menu_merge = self.filemenu.Append(wx.ID_ANY, "&Merge mods\tCtrl+M","")
+        menu_install = self.filemenu.Append(wx.ID_ANY, "&Install mods\tCtrl+S","")
         self.filemenu.AppendSeparator()
         menu_exit = self.filemenu.Append(wx.ID_EXIT, "Exit","")
         
