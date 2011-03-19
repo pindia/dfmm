@@ -154,6 +154,10 @@ class Mod(object):
     def meta(self):
         return self.parent is not None
     
+    def checksum(self):
+        s = sum([hash(o.name + o.extra_data) for o in self.objects])
+        return hash(s)
+    
     def __str__(self):
         return '%s\nA:%s\nM:%s\nD:%s' % (self.name, self.added_objects, self.modified_objects, self.deleted_objects)
 

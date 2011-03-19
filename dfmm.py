@@ -49,10 +49,10 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         
         self.mod_db = shelve.open(os.path.join('mods','mods.db'), 'c', writeback=True)
         
+        self.reload_mods(initial=True)
+        
         self.update_title()
 
-        
-        self.reload_mods(initial=True)
         
         
         self.filemenu = wx.Menu()
@@ -102,10 +102,26 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
     
     @property
     def selected_mod(self):
+        if self.tree.GetSelection() == self.root:
+            return None
         return self.tree.GetPyData(self.tree.GetSelection())['object']
         #return self.mods[self.listbox.GetFirstSelected()]
         
+    @property
+    def enabled_mods(self):
+        ''' Returns only the enabled mods in the proper order for application '''
+        mods = []
+        for item in self.item_children(self.root):
+            mods.append(self.tree.GetPyData(item)['object'])
+            for child in self.item_children(item):
+                mods.append(self.tree.GetPyData(child)['object'])
+        return [m for m in mods if self.mod_db[m.path]['enabled']]
     
+    def mods_checksum(self):
+        ''' Computes a checksum of the currently enabled mods and their order '''
+        c = sum([mod.checksum() for mod in self.enabled_mods]) # Mod contents
+        c += hash(''.join([mod.path for mod in self.enabled_mods])) # Mod ordering
+        return c
         
 
     # Mod loading methods
@@ -201,7 +217,7 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         
         # The common logic for both normal and meta mods
         def process_mod(i, mod, parent):
-            item = self.add_item(parent, '%s (%d) (%d)' % (mod.name, len(mod.objects), self.mod_db[mod.path]['index']), mod)
+            item = self.add_item(parent, '%s (%d)' % (mod.name, len(mod.objects)), mod)
             mod.item = item
             if self.mod_db[mod.path]['enabled']:
                 self.tree.SetItemImage(item, self.img_tick, wx.TreeItemIcon_Normal)
@@ -256,6 +272,8 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
     def mod_context_menu(self, event):
         self.tree.SelectItem(event.GetItem())
         mod = self.selected_mod
+        if not mod:
+            return
         
         menu = wx.Menu()
         
@@ -295,11 +313,13 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         
     def toggle_mod(self, event):
         mod = self.selected_mod
+        if not mod:
+            return
         if self.mod_db[mod.path]['enabled']:
             self.disable_mod(mod)
         else:
             self.enable_mod(mod)
-        self.dirty = True
+        self.update_title()
             
     def enable_mod(self, mod):
         self.mod_db[mod.path]['enabled'] = True
@@ -469,19 +489,13 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         
     def merge_selected_mods(self):
         # Common logic for both normal and meta mods
-        def apply_item(item):
-            mod = self.tree.GetPyData(item)['object']
-            if self.mod_db[mod.path]['enabled']:
-                dataset.apply_mod(mod,
-                                    merge_changes=self.mod_db['_merge_changes'],
-                                    partial_merge=self.mod_db['_partial_merge'],
-                                    delete_override=self.mod_db['_delete_override'])
-            
+
         dataset = copy.deepcopy(self.core_dataset)
-        for item in self.item_children(self.root):
-            apply_item(item)
-            for child in self.item_children(item):
-                apply_item(child)
+        for mod in self.enabled_mods:
+            dataset.apply_mod(mod,
+                                merge_changes=self.mod_db['_merge_changes'],
+                                partial_merge=self.mod_db['_partial_merge'],
+                                delete_override=self.mod_db['_delete_override'])
 
         return dataset
         
@@ -494,7 +508,7 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         for f in current_files:
             os.remove(os.path.join(path, f))
         encode_objects(dataset.objects, path)
-        self.dirty = False
+        self.last_checksum = self.mods_checksum()
         print 'Install complete'
         
     def merge(self, event):
@@ -521,22 +535,25 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
             self.mod_db.sync()
         return perform_toggle
     
-    def set_dirty(self, dirty):
-        self.mod_db['_dirty'] = dirty
+    def set_checksum(self, c):
+        self.mod_db['_checksum'] = c
         self.mod_db.sync()
         self.update_title()
         
     def update_title(self):
-        if self.dirty:
+        print self.last_checksum, self.mods_checksum()
+        if self.last_checksum != self.mods_checksum():
             self.SetTitle('DF Mod Manager (uninstalled changes)')
         else:
             self.SetTitle('DF Mod Manager')
 
         
-    def get_dirty(self):
-        return self.mod_db['_dirty']
+    def get_checksum(self):
+        if '_checksum' not in self.mod_db:
+            self.last_checksum = 0
+        return self.mod_db['_checksum']
         
-    dirty = property(get_dirty, set_dirty)
+    last_checksum = property(get_checksum, set_checksum)
         
 if __name__ == '__main__':
     app = wx.App(False)
