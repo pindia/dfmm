@@ -1,5 +1,6 @@
 import wx
 import images
+import sys, traceback
 
 class ExtendedFrame(wx.Frame):
     ''' The ExtendedFrame class adds a few convenience methods to the Frame class

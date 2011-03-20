@@ -85,7 +85,7 @@ class ModEditorFrame(ExtendedFrame):
         self.objectmenu= wx.Menu()
         menu_add = self.objectmenu.Append(wx.ID_ANY, "&Add object\tCtrl+N","")
         menu_delete = self.objectmenu.Append(wx.ID_ANY, "&Delete object\tDelete","")
-        menu_revert = self.objectmenu.Append(wx.ID_ANY, "&Revert object\tShift+Delete","")
+        menu_revert = self.objectmenu.Append(wx.ID_ANY, "&Revert object\tAlt+Delete","")
         
                 
         self.Bind(wx.EVT_MENU, self.add_object, menu_add)
@@ -401,7 +401,7 @@ if __name__ == '__main__':
     
     core_dataset = decode_core()
     
-    frame = ModEditorFrame(None, decode_mod('mods/edit-steel.dfmod', core_dataset))
+    frame = ModEditorFrame(None, decode_mod('mods/test.dfmod', core_dataset))
     
     
 

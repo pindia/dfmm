@@ -541,7 +541,6 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         self.update_title()
         
     def update_title(self):
-        print self.last_checksum, self.mods_checksum()
         if self.last_checksum != self.mods_checksum():
             self.SetTitle('DF Mod Manager (uninstalled changes)')
         else:
