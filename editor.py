@@ -1,6 +1,7 @@
 import wx, copy
 import merge
 from frame import ExtendedFrame
+from progress import ProgressDialog, thread_wrapper
 from encode import *
 from decode import *
 
@@ -241,18 +242,26 @@ class ModEditorFrame(ExtendedFrame):
         panel.update_listbox(i)
         panel.listbox_clicked(None)
         
-    def save(self, event):
+    def save(self, event, exit=False):
         self.mod.objects = self.objects
-        encode_mod(self.mod, overwrite=True)
-        if self.parent:
-            self.parent.reload_mods()
+        dialog = ProgressDialog(self, 'Saving mod')
+        
+        # All this must be in the other thread so it doesn't get out of order
+        def process():
+            encode_mod(self.mod, overwrite=True, callback=dialog)
+            if self.parent:
+                self.parent.reload_mods()
+            if exit:
+                self.Close(True)
+
+        thread_wrapper(process)()
+
         
     def exit(self, event):
         self.Close(True)
         
     def save_and_exit(self, event):
-        self.save(None)
-        self.exit(None)
+        self.save(None, exit=True)
 
 
 
@@ -401,7 +410,7 @@ if __name__ == '__main__':
     
     core_dataset = decode_core()
     
-    frame = ModEditorFrame(None, decode_mod('mods/test.dfmod', core_dataset))
+    frame = ModEditorFrame(None, decode_mod('mods/genesis.dfmod', core_dataset))
     
     
 

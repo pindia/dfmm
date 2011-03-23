@@ -1,4 +1,5 @@
 from core import *
+from progress import dummy_callback
 import merge
 import re, os, itertools
 
@@ -44,12 +45,15 @@ def decode_file(path):
    
     return objects
    
-def decode_directory(path):
+def decode_directory(path, callback=dummy_callback):
     ''' Parses all files in a directory as raw files and returns all the objects '''
     objects = []
-    for f in sorted(os.listdir(path)):
-        if f.endswith('.txt') and 'readme' not in f.lower():
-            objects.extend(decode_file(os.path.join(path, f)))
+    files = [f for f in sorted(os.listdir(path)) if f.endswith('.txt') and 'readme' not in f.lower()]
+    callback.set_task_number(len(files))
+    for f in files:
+        callback.task_started(label=f)
+        objects.extend(decode_file(os.path.join(path, f)))
+    callback.done()
     return DataSet(objects, included_files=os.listdir(path))
 
 def decode_core():

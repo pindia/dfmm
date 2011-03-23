@@ -4,6 +4,7 @@ import frame
 from decode import *
 from editor import *
 from split import *
+from progress import ProgressDialog, thread_wrapper, dummy_callback
 
 
 class MainFrame(frame.ExtendedFrame, frame.TreeController):
@@ -130,8 +131,7 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         ''' This method clears the currently loaded mod list and reloads every mod in
         the mods directory. Should be used as rarely as possible due to long execution time'''
         
-        if not initial: # If we're not loading for the first time, something's been changed!
-            self.dirty = True
+        dialog = ProgressDialog(self, 'Loading mods')
         
         self.mods = []
         notified = False
@@ -141,6 +141,8 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         for mod in get_mod_list():
             path = os.path.join('mods', mod)
             mod_headers[path] = decode_mod_headers(path)
+            
+        dialog.set_task_number(len(mod_headers))
             
         # Now, let's verify the checksums of all the mods and update if needed
         core_checksum = str(self.core_dataset.checksum())
@@ -158,18 +160,24 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         if notified:
             print 'Done updating mods.'
             
+            
         # First, process the normal mods. This makes them available for the
         # metamods to reference
         for path, headers in mod_headers.items():
             if 'meta' not in headers:
+                dialog.task_started(label=headers['name'])
                 self.load_normal_mod(path)
                 
         # Then, the metamods
         for path, headers in mod_headers.items():
             if 'meta' in headers:
+                dialog.task_started(label=headers['name'])
                 self.load_metamod(path, headers)
                 
+        dialog.done()
+                
         self.update_mod_list()
+        self.update_title()
         
     def load_normal_mod(self, path):
         mod = decode_mod(path, self.core_dataset)
@@ -477,37 +485,47 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
             if dialog.ShowModal() == wx.ID_OK:
                 name = dialog.GetValue()
                 fname = encode_filename(name)
-                try:
-                    mod_dataset = decode_directory(path)
-                    mod = Mod(name, os.path.join('mods', fname), self.core_dataset, self.core_dataset.difference(mod_dataset))
-                    encode_mod(mod)
+                dialog1 = ProgressDialog(self, 'Importing mod')
+                dialog2 = ProgressDialog(self, 'Saving .dfmod')
+                def process():
+                    try:
+                        mod_dataset = decode_directory(path, callback=dialog1)
+                        mod = Mod(name, os.path.join('mods', fname), self.core_dataset, self.core_dataset.difference(mod_dataset))
+                        encode_mod(mod, callback=dialog2)
+                    except:
+                        self.show_current_exception()
+                        dialog1.Close()
+                        dialog2.Close()
                     self.reload_mods()
-                except:
-                    self.show_current_exception()
+                thread_wrapper(process)()
+
            
     
         
-    def merge_selected_mods(self):
+    def merge_selected_mods(self, callback=dummy_callback):
         # Common logic for both normal and meta mods
 
         dataset = copy.deepcopy(self.core_dataset)
+        mods = self.enabled_mods
+        callback.set_task_number(len(mods))
         for mod in self.enabled_mods:
+            callback.task_started(mod.name)
             dataset.apply_mod(mod,
                                 merge_changes=self.mod_db['_merge_changes'],
                                 partial_merge=self.mod_db['_partial_merge'],
                                 delete_override=self.mod_db['_delete_override'])
-
+        callback.done()
         return dataset
         
     def install(self, event):
         print 'Installing mods'
         print '-' * 20
-        dataset = self.merge_selected_mods()
+        dataset = self.merge_selected_mods(callback=ProgressDialog(self, 'Merging mods'))
         path = os.path.join('..','raw','objects')
         current_files = os.listdir(path)
         for f in current_files:
             os.remove(os.path.join(path, f))
-        encode_objects(dataset.objects, path)
+        encode_objects(dataset.objects, path, callback=ProgressDialog(self, 'Installing data'))
         self.last_checksum = self.mods_checksum()
         print 'Install complete'
         
