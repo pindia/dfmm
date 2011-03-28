@@ -87,10 +87,11 @@ class DataSet(object):
         other_objects = set(other.objects)
         other_filenames = set([o.file_name for o in other.objects])
         changes = []
-        for object in other_objects - my_objects: # Added
-            o = copy.deepcopy(object)
-            o.added = True
-            changes.append(o)
+        for object in other.objects: # Added
+            if object not in my_objects:
+                o = copy.deepcopy(object)
+                o.added = True
+                changes.append(o)
         for object in my_objects - other_objects: # Deleted
             if object.file_name not in other.included_files:
                 continue # If the other set doesn't have the core file, assume it should be kept
