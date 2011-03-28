@@ -214,6 +214,8 @@ class ModEditorFrame(ExtendedFrame):
         
     def delete_object(self, event):
         panel = self.nb.GetCurrentPage()
+        if self.FindFocus() == panel.editor:
+            return # Abort if editor has focus
         i = panel.listbox.GetSelections()[0]
         object = panel.objects[i]
         if object.added:

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Komodo Project File - DO NOT EDIT -->
-<project id="188de84c-1541-45bc-a856-f5eaa61cefe0" kpf_version="4" name="dfmm.kpf">
+<project id="188de84c-1541-45bc-a856-f5eaa61cefe0" kpf_version="5" name="dfmm.komodoproject">
 <preference-set idref="188de84c-1541-45bc-a856-f5eaa61cefe0">
   <boolean id="import_live">1</boolean>
 </preference-set>
