@@ -33,11 +33,10 @@ def decode_file(path):
         if comment:
             raw_data = comment + '\n' + raw_data
             comment = ''
-        before_last_line, sep, last_line = raw_data.rpartition('\n')
-        if sep and '[' not in last_line and ']' not in last_line:
-            # If the last line has no tags, assume it's a comment for the next one
-            comment = last_line
-            raw_data = before_last_line.strip('\n')
+        before_last_tag, sep, extra_stuff = raw_data.rpartition(']')
+        if sep and extra_stuff.strip():
+            comment = extra_stuff.strip()
+            raw_data = before_last_tag + sep 
         object = Object(fname, type, root_type, name)
         object.extra_data = raw_data
         objects.append(object)

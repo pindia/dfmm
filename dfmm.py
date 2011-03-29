@@ -78,7 +78,10 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         self.Bind(wx.EVT_MENU, self.import_dfmod_zip, menu_import_dfmod_zip)
         self.Bind(wx.EVT_MENU, self.import_files, menu_import_files)
         
-        OPTIONS = [['_merge_changes','Merge changes'], ['_partial_merge','Allow partial merge'], ['_delete_override','Delete overrides edit']]
+        OPTIONS = [['_merge_changes','Merge changes'],
+            ['_partial_merge','Allow partial merge'],
+            ['_delete_override','Delete overrides edit'],
+            ['_show_numbers','Show detailed change numbers']]
         
         self.options_menu = {}
         self.optionsmenu = wx.Menu()
@@ -225,7 +228,10 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         
         # The common logic for both normal and meta mods
         def process_mod(i, mod, parent):
-            item = self.add_item(parent, '%s (%d)' % (mod.name, len(mod.objects)), mod)
+            if self.mod_db['_show_numbers']:
+                item = self.add_item(parent, '%s (%d/%d/%d)' % (mod.name, len(mod.added_objects), len(mod.modified_objects), len(mod.deleted_objects)), mod)
+            else:
+                item = self.add_item(parent, '%s (%d)' % (mod.name, len(mod.objects)), mod)
             mod.item = item
             if self.mod_db[mod.path]['enabled']:
                 self.tree.SetItemImage(item, self.img_tick, wx.TreeItemIcon_Normal)
@@ -551,6 +557,8 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
             self.mod_db[option] = not self.mod_db[option]
             self.options_menu[option].Check(self.mod_db[option])
             self.mod_db.sync()
+            if option == '_show_numbers':
+                self.update_mod_list()
         return perform_toggle
     
     def set_checksum(self, c):

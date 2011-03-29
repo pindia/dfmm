@@ -1,6 +1,6 @@
 import zipfile, os
 
-VERSION = "0.6"
+VERSION = "0.7"
 EXCLUDE = ['compile', 'package']
 
 # Make source zip
