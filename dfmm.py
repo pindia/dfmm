@@ -408,9 +408,7 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         dialog = wx.FileDialog(self, 'Select File', wildcard='*.dfmod', style=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
         if dialog.ShowModal() == wx.ID_OK:
             path = dialog.GetPath()
-            new_mod = copy.deepcopy(mod)
-            new_mod.path = path
-            encode_mod(new_mod)
+            shutil.copy(mod.path, path)
             
     def export_dfmod_zip(self, event):
         mod = self.selected_mod
