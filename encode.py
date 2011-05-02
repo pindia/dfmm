@@ -42,7 +42,9 @@ def object_to_dfmm_command(object, core_dataset):
     if object.added:
         return 'DFMM|ADD|%s|%s' % (id, object.extra_data)
     if object.modified:
-        return 'DFMM|MODIFY|%s|%s' % (id, merge.make_patch(core_dataset.get_object(object.root_type, object.type, object.name).extra_data, object.extra_data))
+        if not object.patch_cache:
+            object.patch_cache = merge.make_patch(core_dataset.get_object(object.root_type, object.type, object.name).extra_data, object.extra_data)
+        return 'DFMM|MODIFY|%s|%s' % (id, object.patch_cache)
     if object.deleted:
         return 'DFMM|DELETE|%s|' % id
 

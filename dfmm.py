@@ -130,11 +130,11 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
 
     # Mod loading methods
     
-    def reload_mods(self, initial=False):
+    def reload_mods(self, initial=False, progress=True):
         ''' This method clears the currently loaded mod list and reloads every mod in
         the mods directory. Should be used as rarely as possible due to long execution time'''
         
-        dialog = ProgressDialog(self, 'Loading mods')
+        dialog = ProgressDialog(self, 'Loading mods', show=progress)
         
         self.mods = []
         notified = False
@@ -203,6 +203,7 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         mod.parent = parent
         self.mods.append(mod)
         return mod
+    
             
         
     

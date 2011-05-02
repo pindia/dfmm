@@ -34,15 +34,17 @@ dummy_callback = DummyCallback()
 
 
 class ProgressDialog(wx.Dialog):
-    def __init__(self, parent, title="Progress"):
+    def __init__(self, parent, title="Progress", show=True):
         wx.Dialog.__init__(self, parent, title=title, size=(300,60))
         self.title_base = title
         self.task_number = 0
+        self.show = show
         self.gauge = wx.Gauge(self, range=100, pos=(0,0), size=(300,20))
         self.label = wx.StaticText(self, pos=(0, 20), size=(300, 20))
         
     def set_task_number(self, number):
-        self.Show()
+        if self.show:
+            self.Show()
         self.task_number = number
         self.i = 0
         

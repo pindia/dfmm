@@ -172,6 +172,7 @@ class Object(object):
         self.name = name
         self.tags = []
         self.extra_data = ''
+        self.patch_cache = None
         
         self.added = False
         self.modified = False
@@ -181,6 +182,10 @@ class Object(object):
         self.tags.append(tag)
     def add_data(self, data):
         self.extra_data += data
+        
+    def invalidate_cache(self):
+        self.patch_cache = None
+        
     def __repr__(self):
         return '%s:%s' % (self.type, self.name)
         

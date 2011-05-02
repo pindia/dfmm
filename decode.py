@@ -114,6 +114,7 @@ def decode_mod(path, base_dataset):
                     if n != 0:
                         print 'Warning:  %d/%d modifications to object [%s:%s] in mod %s could not be applied and have been skipped.' % (n, t, o.type, o.name, path)
                     o.extra_data = results[0][1:] # Remove ampersand
+                    o.patch_cache = patch_data # Save patch data for faster save
             except:
                 print 'Error decoding modification to object [%s:%s] in mod %s. Skipping.' % (o.type, o.name, path)
                 continue

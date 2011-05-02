@@ -252,7 +252,7 @@ class ModEditorFrame(ExtendedFrame):
         def process():
             encode_mod(self.mod, overwrite=True, callback=dialog)
             if self.parent:
-                self.parent.reload_mods()
+                self.parent.reload_mods(progress=False)
             if exit:
                 self.Close(True)
 
@@ -379,6 +379,7 @@ class ObjectTypePanel(wx.Panel):
         if object.deleted:
             return
         object.extra_data = self.editor.GetString(0, self.editor.GetLastPosition())
+        object.invalidate_cache()
         if object.added:
             return
         core_object = self.root_frame.core_object_lookup[object.type+object.name]
