@@ -98,10 +98,11 @@ class ModEditorFrame(ExtendedFrame):
         self.editmenu = wx.Menu()
         menu_find = self.editmenu.Append(wx.ID_ANY, "&Find...\tCtrl+F")
         menu_replace = self.editmenu.Append(wx.ID_ANY, "&Replace...\tCtrl+R")
-        #menu_find_all = self.editmenu.Append(wx.ID_ANY, "&Find in All...\tCtrl-Shift-F")
+        menu_find_objects = self.editmenu.Append(wx.ID_ANY, "&Find in objects...\tCtrl+Shift+F")
 
         self.Bind(wx.EVT_MENU, self.show_find, menu_find)
         self.Bind(wx.EVT_MENU, self.show_replace, menu_replace)
+        self.Bind(wx.EVT_MENU, self.show_find_objects, menu_find_objects)
 
 
         
@@ -129,9 +130,17 @@ class ModEditorFrame(ExtendedFrame):
     def show_find(self, event):
         if not self.find_open:
             self.find_open = True
+            self.find_objects = False
             dialog = wx.FindReplaceDialog(self, self.find_data, 'Find',style=wx.FR_NOWHOLEWORD)
             dialog.Show()
-        
+            
+    def show_find_objects(self, event):
+        if not self.find_open:
+            self.find_open = True
+            self.find_objects = True
+            dialog = wx.FindReplaceDialog(self, self.find_data, 'Find in Objects',style=wx.FR_NOWHOLEWORD)
+            dialog.Show()
+            
     def show_replace(self, event):
         if not self.find_open:
             self.find_open = True
@@ -140,24 +149,59 @@ class ModEditorFrame(ExtendedFrame):
         
         
     def perform_find(self, event):
-        editor = self.nb.GetCurrentPage().editor
-        value = editor.GetValue()
-        find_text = event.GetFindString()
+        
+        panel = self.nb.GetCurrentPage()
+
+        editor = panel.editor
+        raw_find_text = event.GetFindString()
         flags = event.GetFlags()
         pos = editor.GetInsertionPoint()
-        if not wx.FR_MATCHCASE & flags:
-            find_text = find_text.upper()
-            value = value.upper()
-        if wx.FR_DOWN & flags:
-            pos = value.find(find_text, pos+1)
-        else:
-            pos = value.rfind(find_text, 0, pos-1)
         
-        if pos > -1:
-            editor.SetSelection(pos, pos+len(find_text))
-            editor.SetFocus()
+        def find_in_object(i, pos):
+            object = panel.objects[i]
+            value = object.extra_data
+            if not wx.FR_MATCHCASE & flags:
+                find_text = raw_find_text.upper()
+                value = value.upper()
+            else:
+                find_text = raw_find_text
+            if wx.FR_DOWN & flags:
+                pos = value.find(find_text, pos+1)
+            else:
+                pos = value.rfind(find_text, 0, pos-1)
+            if pos > -1:
+                panel.listbox.SetSelection(i)
+                panel.listbox_clicked(None)
+                editor.SetSelection(pos, pos+len(find_text))
+                editor.SetFocus()
+                return True
+            else:
+                return False
+                
+        
+
+        i = panel.listbox.GetSelections()[0]
+        
+        if self.find_objects:
+            while True:
+                print i
+                if find_in_object(i, pos):
+                    break
+                if wx.FR_DOWN & flags:
+                    i = i + 1
+                    pos = 0
+                else:
+                    i = i - 1
+                    pos = 0
+                if not 0 < i < panel.listbox.GetCount():
+                    self.info_dialog('Cannot find "%s"' % event.GetFindString(), 'Find')
+                    return
         else:
-            self.info_dialog('Cannot find "%s"' % event.GetFindString(), 'Find')
+            if not find_in_object(i, pos):
+                self.info_dialog('Cannot find "%s"' % event.GetFindString(), 'Find')
+                return
+
+
             
     def perform_replace(self, event):
         editor = self.nb.GetCurrentPage().editor
