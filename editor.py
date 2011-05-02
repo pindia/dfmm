@@ -40,13 +40,16 @@ class ModEditorFrame(ExtendedFrame):
         
         
         self.nb = wx.Notebook(self, -1, wx.Point(0,0), wx.Size(0,0), wx.NB_MULTILINE)
+        self.panels = []
         
         for header in sorted(headers.keys()):
             changed_objects = len([o for o in mod.changed_objects if o.type == header])
             text = header
             if changed_objects != 0:
                 text += ' [%d]' % changed_objects
-            self.nb.AddPage(ObjectTypePanel(self.nb, header, headers[header], self), text)
+            panel = ObjectTypePanel(self.nb, header, headers[header], self)
+            self.nb.AddPage(panel, text)
+            self.panels.append(panel)
             
         # Set up the find/replace functions
             
@@ -112,6 +115,17 @@ class ModEditorFrame(ExtendedFrame):
         self.menu_highlight = self.viewmenu.Append(wx.ID_ANY,"Highlight changes\tCtrl+H", kind=wx.ITEM_CHECK)
         self.menu_highlight.Check(True)
         self.menu_core = self.viewmenu.Append(wx.ID_ANY,"View core data\tCtrl+D", kind=wx.ITEM_CHECK)
+                
+        self.menu_sort = wx.Menu()
+        self.menu_sort_original = self.menu_sort.AppendRadioItem(wx.ID_ANY, 'Original order')
+        self.menu_sort_alphabet = self.menu_sort.AppendRadioItem(wx.ID_ANY, 'Alphabetical')
+        self.menu_sort_status = self.menu_sort.AppendRadioItem(wx.ID_ANY, 'Grouped by status')
+        self.menu_sort_status.Check()
+        for item in [self.menu_sort_original, self.menu_sort_alphabet, self.menu_sort_status]:
+            self.Bind(wx.EVT_MENU, self.resort_all, item)
+        
+        self.viewmenu.AppendSubMenu(self.menu_sort,"Sort objects by")
+        
         self.Bind(wx.EVT_MENU, self.view_highlight, self.menu_highlight)
         self.Bind(wx.EVT_MENU, self.view_core, self.menu_core)
         
@@ -127,6 +141,14 @@ class ModEditorFrame(ExtendedFrame):
         
     def view_core(self, event):
         self.nb.GetCurrentPage().listbox_clicked(None)
+        
+    def resort_all(self, event):
+        dialog = ProgressDialog(self, 'Resorting objects')
+        dialog.set_task_number(len(self.panels))
+        for panel in self.panels:
+            dialog.task_started(panel.type)
+            panel.resort_objects()
+        dialog.done()
 
         
     def show_find(self, event):
@@ -375,16 +397,6 @@ class ObjectTypePanel(wx.Panel):
         self.editor.Bind(wx.EVT_TEXT, self.data_modified)
         self.suppress_modified = False
         
-        
-        
-        
-        '''self.sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.SetSizer(self.sizer)
-        self.SetAutoLayout(1)
-        self.sizer.Add(self.listbox, 1)
-        self.sizer.Add(self.editor, 3)
-        self.sizer.Fit(self)'''
-        
         self.horizontal = wx.BoxSizer(wx.HORIZONTAL)
         self.horizontal.Add(self.listbox, 1, wx.EXPAND)
         self.horizontal.Add(self.editor, 3, wx.EXPAND)
@@ -392,17 +404,32 @@ class ObjectTypePanel(wx.Panel):
         self.vertical.Add(self.horizontal, 1, wx.EXPAND)
         self.SetSizerAndFit(self.vertical)
         
-        objects.sort(key=lambda o: o.name)
+        self.resort_objects()
         
-        for i, o in enumerate(objects):
+        self.Show(True)
+        
+    def resort_objects(self):
+        def object_key(o):
+            if o.added:
+                return 'A'
+            if o.modified:
+                return 'B'
+            if o.deleted:
+                return 'D'
+            return 'C'
+        if self.root_frame.menu_sort_alphabet.IsChecked():
+            self.objects.sort(key=lambda o: o.name)
+        if self.root_frame.menu_sort_status.IsChecked():
+            self.objects.sort(key=lambda o: object_key(o)+o.name)
+        
+        self.listbox.Clear()
+        for i, o in enumerate(self.objects):
             self.listbox.Append(o.name)
             self.update_listbox(i)
             
         self.listbox.SetSelection(0)
-        
         self.listbox_clicked(None)
         
-        self.Show(True)
         
     def object_context_menu(self, event):
         
