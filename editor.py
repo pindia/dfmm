@@ -85,7 +85,7 @@ class ModEditorFrame(ExtendedFrame):
         
         self.objectmenu= wx.Menu()
         menu_add = self.objectmenu.Append(wx.ID_ANY, "&Add object\tCtrl+N","")
-        menu_rename = self.objectmenu.Append(wx.ID_ANY, "&Rename object\tCtrl+E","")
+        menu_rename = self.objectmenu.Append(wx.ID_ANY, "&Rename object\tF2","")
         menu_delete = self.objectmenu.Append(wx.ID_ANY, "&Delete object\tDelete","")
         menu_revert = self.objectmenu.Append(wx.ID_ANY, "&Revert object\tAlt+Delete","")
         
