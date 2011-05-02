@@ -86,7 +86,7 @@ class ModEditorFrame(ExtendedFrame):
         self.objectmenu= wx.Menu()
         menu_add = self.objectmenu.Append(wx.ID_ANY, "&Add object\tCtrl+N","")
         menu_rename = self.objectmenu.Append(wx.ID_ANY, "&Rename object\tF2","")
-        menu_delete = self.objectmenu.Append(wx.ID_ANY, "&Delete object\tDelete","")
+        menu_delete = self.objectmenu.Append(wx.ID_ANY, "&Delete object\tShift+Delete","")
         menu_revert = self.objectmenu.Append(wx.ID_ANY, "&Revert object\tAlt+Delete","")
         
                 
@@ -234,20 +234,29 @@ class ModEditorFrame(ExtendedFrame):
         
     def delete_object(self, event):
         panel = self.nb.GetCurrentPage()
-        if self.FindFocus() == panel.editor:
-            return # Abort if editor has focus
+        #if self.FindFocus() == panel.editor:
+        #    return # Abort if editor has focus
         i = panel.listbox.GetSelections()[0]
         object = panel.objects[i]
         if object.added:
             self.objects.remove(object)
             panel.objects.remove(object)
             panel.listbox.Delete(i)
+            if i < panel.listbox.GetCount():
+                panel.listbox.SetSelection(i)
+            else:
+                panel.listbox.SetSelection(i-1)
         else:
             object.modified = False
             object.deleted = True
             object.extra_data = '<DELETED>'
             panel.update_listbox(i)
+            if i+1 < panel.listbox.GetCount():
+                panel.listbox.SetSelection(i+1)
+            else:
+                panel.listbox.SetSelection(i)
             panel.listbox_clicked(None)
+        
         
         
     def revert_object(self, event):
