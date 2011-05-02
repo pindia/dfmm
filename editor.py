@@ -99,10 +99,12 @@ class ModEditorFrame(ExtendedFrame):
         menu_find = self.editmenu.Append(wx.ID_ANY, "&Find...\tCtrl+F")
         menu_replace = self.editmenu.Append(wx.ID_ANY, "&Replace...\tCtrl+R")
         menu_find_objects = self.editmenu.Append(wx.ID_ANY, "&Find in objects...\tCtrl+Shift+F")
+        menu_replace_objects = self.editmenu.Append(wx.ID_ANY, "&Replace in objects...\tCtrl+Shift+R")
 
         self.Bind(wx.EVT_MENU, self.show_find, menu_find)
         self.Bind(wx.EVT_MENU, self.show_replace, menu_replace)
         self.Bind(wx.EVT_MENU, self.show_find_objects, menu_find_objects)
+        self.Bind(wx.EVT_MENU, self.show_replace_objects, menu_replace_objects)
 
 
         
@@ -138,15 +140,22 @@ class ModEditorFrame(ExtendedFrame):
         if not self.find_open:
             self.find_open = True
             self.find_objects = True
-            dialog = wx.FindReplaceDialog(self, self.find_data, 'Find in Objects',style=wx.FR_NOWHOLEWORD)
+            dialog = wx.FindReplaceDialog(self, self.find_data, 'Find in objects',style=wx.FR_NOWHOLEWORD)
             dialog.Show()
             
     def show_replace(self, event):
         if not self.find_open:
             self.find_open = True
-            dialog = wx.FindReplaceDialog(self, self.find_data, 'Find', style=wx.FR_REPLACEDIALOG|wx.FR_NOWHOLEWORD)
+            self.find_objects = False
+            dialog = wx.FindReplaceDialog(self, self.find_data, 'Replace', style=wx.FR_REPLACEDIALOG|wx.FR_NOWHOLEWORD)
             dialog.Show()
-        
+
+    def show_replace_objects(self, event):
+        if not self.find_open:
+            self.find_open = True
+            self.find_objects = True
+            dialog = wx.FindReplaceDialog(self, self.find_data, 'Replace in objects', style=wx.FR_REPLACEDIALOG|wx.FR_NOWHOLEWORD)
+            dialog.Show()
         
     def perform_find(self, event):
         
@@ -184,7 +193,6 @@ class ModEditorFrame(ExtendedFrame):
         
         if self.find_objects:
             while True:
-                print i
                 if find_in_object(i, pos):
                     break
                 if wx.FR_DOWN & flags:
@@ -208,27 +216,37 @@ class ModEditorFrame(ExtendedFrame):
         find_text = event.GetFindString()
         replace_text = event.GetReplaceString()
         selected_text = editor.GetStringSelection()
-        if find_text == selected_text:
+        if find_text.upper() == selected_text.upper():
             pos = editor.GetInsertionPoint()
             editor.Replace(pos, pos+len(find_text), replace_text)
             
     def perform_replace_all(self, event):
-        editor = self.nb.GetCurrentPage().editor
-        value = editor.GetValue()
-        find_text = event.GetFindString()
-        replace_text = event.GetReplaceString()
-        flags = event.GetFlags()
-        if not wx.FR_MATCHCASE & flags:
-            find_text = find_text.upper()
-            value = value.upper()
-        pos = value.find(find_text, 0)
-        while pos != -1:
-            editor.Replace(pos, pos+len(find_text), replace_text)
+        panel = self.nb.GetCurrentPage()
+        def replace_in_object():
+            editor = self.nb.GetCurrentPage().editor
             value = editor.GetValue()
+            find_text = event.GetFindString()
+            replace_text = event.GetReplaceString()
+            flags = event.GetFlags()
             if not wx.FR_MATCHCASE & flags:
+                find_text = find_text.upper()
                 value = value.upper()
-            pos += len(replace_text)+1
-            pos = value.find(find_text, pos)
+            pos = value.find(find_text, 0)
+            while pos != -1:
+                editor.Replace(pos, pos+len(find_text), replace_text)
+                value = editor.GetValue()
+                if not wx.FR_MATCHCASE & flags:
+                    value = value.upper()
+                pos += len(replace_text)+1
+                pos = value.find(find_text, pos)
+                
+        if self.find_objects:
+            for i in range(panel.listbox.GetCount()):
+                panel.listbox.SetSelection(i)
+                panel.listbox_clicked(None)
+                replace_in_object()
+        else:
+            replace_in_object()
 
         
         
