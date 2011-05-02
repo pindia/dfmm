@@ -85,11 +85,13 @@ class ModEditorFrame(ExtendedFrame):
         
         self.objectmenu= wx.Menu()
         menu_add = self.objectmenu.Append(wx.ID_ANY, "&Add object\tCtrl+N","")
+        menu_rename = self.objectmenu.Append(wx.ID_ANY, "&Rename object\tCtrl+E","")
         menu_delete = self.objectmenu.Append(wx.ID_ANY, "&Delete object\tDelete","")
         menu_revert = self.objectmenu.Append(wx.ID_ANY, "&Revert object\tAlt+Delete","")
         
                 
         self.Bind(wx.EVT_MENU, self.add_object, menu_add)
+        self.Bind(wx.EVT_MENU, self.rename_object, menu_rename)
         self.Bind(wx.EVT_MENU, self.delete_object, menu_delete)
         self.Bind(wx.EVT_MENU, self.revert_object, menu_revert)
         
@@ -212,6 +214,23 @@ class ModEditorFrame(ExtendedFrame):
             panel.listbox_clicked(None)
         else:
             pass
+        
+    def rename_object(self, event):
+        panel = self.nb.GetCurrentPage()
+        i = panel.listbox.GetSelections()[0]
+        object = panel.objects[i]
+        if not object.added:
+            self.warning_dialog('Only objects added by the current mod may be renamed.', 'Cannot rename')
+            return
+        dialog = wx.TextEntryDialog(self, 'Enter new name for object [%s] (do not include object type)' % object, 'Rename object', object.name)
+        if dialog.ShowModal() == wx.ID_OK:
+            object.name = dialog.GetValue()
+            panel.update_listbox(i)
+            panel.listbox_clicked(None)
+        else:
+            pass
+        
+    
         
     def delete_object(self, event):
         panel = self.nb.GetCurrentPage()
