@@ -397,6 +397,8 @@ class ObjectTypePanel(wx.Panel):
         for i, o in enumerate(objects):
             self.listbox.Append(o.name)
             self.update_listbox(i)
+            
+        self.listbox.SetSelection(0)
         
         self.listbox_clicked(None)
         
