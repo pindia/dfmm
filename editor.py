@@ -100,8 +100,8 @@ class ModEditorFrame(ExtendedFrame):
     def init_menu(self):
         
         self.filemenu= wx.Menu()
-        menu_open_file = self.filemenu.Append(wx.ID_ANY, "Open file...","")
-        menu_open_directory = self.filemenu.Append(wx.ID_ANY, "Open directory...","")
+        menu_open_file = self.filemenu.Append(wx.ID_ANY, "Open file...\tCtrl+O","")
+        menu_open_directory = self.filemenu.Append(wx.ID_ANY, "Open directory...\tCtrl+Shift+O","")
         self.filemenu.AppendSeparator()
         menu_save = self.filemenu.Append(wx.ID_ANY, "&Save\tCtrl+S","")
         menu_save_and_exit = self.filemenu.Append(wx.ID_ANY, "Save and &exit","")
@@ -589,15 +589,10 @@ if __name__ == '__main__':
         
     app = wx.App(False)
     
-    #core_dataset = decode_core()
-    #mod = decode_mod('mods/genesis.dfmod', core_dataset)
     
-    objects = decode_file('core/creature_standard.txt')
     
     frame = ModEditorFrame(None)
     
-    
-
     frame.Show()
     
     app.MainLoop()

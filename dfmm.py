@@ -302,6 +302,7 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         menu.AppendSeparator()
         menu_edit = menu.Append(wx.ID_ANY, "&Edit mod","")
         menu_split = menu.Append(wx.ID_ANY, "&Split mod","")
+        menu_rename = menu.Append(wx.ID_ANY, "&Rename mod","")
         menu_delete = menu.Append(wx.ID_ANY, "&Delete mod","")
         
         menu.AppendSeparator()
@@ -322,6 +323,7 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         self.Bind(wx.EVT_MENU, self.edit_mod, menu_edit)
         self.Bind(wx.EVT_MENU, self.create_metamod, menu_meta)
         self.Bind(wx.EVT_MENU, self.import_metamod, menu_import_meta)
+        self.Bind(wx.EVT_MENU, self.rename_mod, menu_rename)
         self.Bind(wx.EVT_MENU, self.delete_mod, menu_delete)
         
         self.PopupMenu(menu, event.GetPoint())
@@ -357,6 +359,14 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
             fname = encode_filename(name)
             encode_mod(Mod(name, os.path.join('mods', fname), self.core_dataset, []))
             self.reload_mods()
+            
+    def rename_mod(self, event):
+        mod = self.selected_mod
+        name = self.text_entry_dialog('Enter new name for "%s"' % mod.name, 'Rename mod', mod.name)
+        if name:
+            mod.name = name
+            encode_mod(mod, overwrite=True)
+            self.update_mod_list()
             
     def create_metamod(self, event):
         mod = self.selected_mod
