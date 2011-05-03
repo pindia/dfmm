@@ -397,7 +397,8 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         
     def edit_mod(self, event):
         mod = self.selected_mod
-        frame = ModEditorFrame(self, mod)
+        frame = ModEditorFrame(self)
+        frame.load_mod(mod)
         frame.Show()
         
     def delete_mod(self, event):

@@ -6,27 +6,34 @@ from encode import *
 from decode import *
 
 class ModEditorFrame(ExtendedFrame):
-    def __init__(self, parent, mod):
+    def __init__(self, parent):
         
-        title = 'Mod Editor: %s' % path_to_filename(mod.path)
-        if mod.parent:
-            title += ' (Metamod of %s)' % path_to_filename(mod.parent.path)
+        #title = 'Mod Editor: %s' % path_to_filename(mod.path)
+        #if mod.parent:
+        #    title += ' (Metamod of %s)' % path_to_filename(mod.parent.path)
         
-        wx.Frame.__init__(self, parent, title=title, size=(800, 600))
+        wx.Frame.__init__(self, parent, title='DFMM Editor', size=(800, 600))
         
         self.parent = parent
         
         self.init_menu()
         self.load_templates()
+                   
+        # Set up the find/replace functions
+            
+        self.find_data =  wx.FindReplaceData()
+        self.find_data.SetFlags(wx.FR_DOWN)
+        self.find_open = False
+        self.Bind(wx.EVT_FIND, self.perform_find)
+        self.Bind(wx.EVT_FIND_NEXT, self.perform_find)
+        self.Bind(wx.EVT_FIND_REPLACE, self.perform_replace)
+        self.Bind(wx.EVT_FIND_REPLACE_ALL, self.perform_replace_all)
+        self.Bind(wx.EVT_FIND_CLOSE, self.find_closed)
+                
         
-        self.core_dataset = mod.base
-        self.core_objects = self.core_dataset.objects
+    def load_objects(self, objects):
         
-        dataset = copy.deepcopy(self.core_dataset)
-        dataset.apply_mod_for_editing(mod)
-        self.objects = dataset.objects
-        
-        self.mod = mod
+        self.objects = objects
         
         self.core_object_lookup = {}
         for object in self.core_objects:
@@ -39,28 +46,40 @@ class ModEditorFrame(ExtendedFrame):
             headers[o.type].append(o)
         
         
-        self.nb = wx.Notebook(self, -1, wx.Point(0,0), wx.Size(0,0), wx.NB_MULTILINE)
+        if hasattr(self, 'nb'):
+            self.nb.DeleteAllPages()
+        else:
+            self.nb = wx.Notebook(self, -1, wx.Point(0,0), wx.Size(0,0), wx.NB_MULTILINE)
         self.panels = []
         
         for header in sorted(headers.keys()):
-            changed_objects = len([o for o in mod.changed_objects if o.type == header])
             text = header
-            if changed_objects != 0:
-                text += ' [%d]' % changed_objects
+            if self.mod:
+                changed_objects = len([o for o in self.mod.changed_objects if o.type == header])
+                if changed_objects != 0:
+                    text += ' [%d]' % changed_objects
             panel = ObjectTypePanel(self.nb, header, headers[header], self)
             self.nb.AddPage(panel, text)
             self.panels.append(panel)
             
-        # Set up the find/replace functions
+        self.SendSizeEvent() # Force the frame to redraw the new objects
             
-        self.find_data =  wx.FindReplaceData()
-        self.find_data.SetFlags(wx.FR_DOWN)
-        self.find_open = False
-        self.Bind(wx.EVT_FIND, self.perform_find)
-        self.Bind(wx.EVT_FIND_NEXT, self.perform_find)
-        self.Bind(wx.EVT_FIND_REPLACE, self.perform_replace)
-        self.Bind(wx.EVT_FIND_REPLACE_ALL, self.perform_replace_all)
-        self.Bind(wx.EVT_FIND_CLOSE, self.find_closed)
+            
+    def load_mod(self, mod):
+        self.mod = mod
+        self.core_dataset = mod.base
+        self.core_objects = self.core_dataset.objects
+        dataset = copy.deepcopy(self.core_dataset)
+        dataset.apply_mod_for_editing(mod)
+        
+        self.load_objects(dataset.objects)
+        
+    def load_raw_objects(self, objects):
+        self.mod = None
+        self.core_dataset = None
+        self.core_objects = copy.deepcopy(objects)
+        
+        self.load_objects(objects)
 
         
         
@@ -78,17 +97,22 @@ class ModEditorFrame(ExtendedFrame):
     def init_menu(self):
         
         self.filemenu= wx.Menu()
+        menu_open_file = self.filemenu.Append(wx.ID_ANY, "Open file...","")
+        menu_open_directory = self.filemenu.Append(wx.ID_ANY, "Open directory...","")
+        self.filemenu.AppendSeparator()
         menu_save = self.filemenu.Append(wx.ID_ANY, "&Save\tCtrl+S","")
         menu_save_and_exit = self.filemenu.Append(wx.ID_ANY, "Save and &exit","")
         menu_exit = self.filemenu.Append(wx.ID_ANY, "Exit without saving","")
         
+        self.Bind(wx.EVT_MENU, self.open_file, menu_open_file)
+        self.Bind(wx.EVT_MENU, self.open_directory, menu_open_directory)
         self.Bind(wx.EVT_MENU, self.save, menu_save)
         self.Bind(wx.EVT_MENU, self.exit, menu_exit)
         self.Bind(wx.EVT_MENU, self.save_and_exit, menu_save_and_exit)
         
         self.objectmenu= wx.Menu()
-        menu_add = self.objectmenu.Append(wx.ID_ANY, "&Add object\tCtrl+N","")
-        menu_rename = self.objectmenu.Append(wx.ID_ANY, "&Rename object\tF2","")
+        menu_add = self.objectmenu.Append(wx.ID_ANY, "&Add object...\tCtrl+N","")
+        menu_rename = self.objectmenu.Append(wx.ID_ANY, "&Rename object...\tF2","")
         menu_delete = self.objectmenu.Append(wx.ID_ANY, "&Delete object\tShift+Delete","")
         menu_revert = self.objectmenu.Append(wx.ID_ANY, "&Revert object\tAlt+Delete","")
         
@@ -149,6 +173,27 @@ class ModEditorFrame(ExtendedFrame):
             dialog.task_started(panel.type)
             panel.resort_objects()
         dialog.done()
+        
+    def open_file(self, event):
+        dialog = wx.FileDialog(self, 'Select file', wildcard='*.txt')
+        if dialog.ShowModal() == wx.ID_OK:
+            path = dialog.GetPath()
+            try:
+                objects = decode_file(path)
+            except:
+                self.show_current_exception()
+            self.load_raw_objects(objects)
+            
+    def open_directory(self, event):
+        dialog = wx.DirDialog(self, 'Select directory', style=wx.DD_DIR_MUST_EXIST)
+        if dialog.ShowModal() == wx.ID_OK:
+            path = dialog.GetPath()
+            try:
+                dataset = decode_directory(path)
+            except:
+                self.show_current_exception()
+            self.load_raw_objects(dataset.objects)
+            
 
         
     def show_find(self, event):
@@ -530,12 +575,16 @@ if __name__ == '__main__':
         
     app = wx.App(False)
     
-    core_dataset = decode_core()
+    #core_dataset = decode_core()
+    #mod = decode_mod('mods/genesis.dfmod', core_dataset)
     
-    frame = ModEditorFrame(None, decode_mod('mods/genesis.dfmod', core_dataset))
+    objects = decode_file('core/creature_standard.txt')
+    
+    frame = ModEditorFrame(None)
     
     
 
     frame.Show()
+    
     app.MainLoop()
 
