@@ -73,13 +73,16 @@ class ModEditorFrame(ExtendedFrame):
         dataset.apply_mod_for_editing(mod)
         
         self.load_objects(dataset.objects)
+        self.set_title(mod.path)
         
-    def load_raw_objects(self, objects):
+    def load_raw_objects(self, objects, path):
         self.mod = None
+        self.path = path
         self.core_dataset = None
         self.core_objects = copy.deepcopy(objects)
         
         self.load_objects(objects)
+        self.set_title(path)
 
         
         
@@ -160,6 +163,9 @@ class ModEditorFrame(ExtendedFrame):
         menuBar.Append(self.viewmenu,"&View")
         self.SetMenuBar(menuBar)
         
+    def set_title(self, title):
+        self.SetTitle('DFMM Editor: %s' % title)
+        
     def view_highlight(self, event):
         self.nb.GetCurrentPage().listbox_clicked(None)
         
@@ -182,7 +188,7 @@ class ModEditorFrame(ExtendedFrame):
                 objects = decode_file(path)
             except:
                 self.show_current_exception()
-            self.load_raw_objects(objects)
+            self.load_raw_objects(objects, path)
             
     def open_directory(self, event):
         dialog = wx.DirDialog(self, 'Select directory', style=wx.DD_DIR_MUST_EXIST)
@@ -192,7 +198,7 @@ class ModEditorFrame(ExtendedFrame):
                 dataset = decode_directory(path)
             except:
                 self.show_current_exception()
-            self.load_raw_objects(dataset.objects)
+            self.load_raw_objects(dataset.objects, path)
             
 
         
@@ -402,12 +408,20 @@ class ModEditorFrame(ExtendedFrame):
         panel.listbox_clicked(None)
         
     def save(self, event, exit=False):
-        self.mod.objects = self.objects
+        if self.mod:
+            self.mod.objects = self.objects
         dialog = ProgressDialog(self, 'Saving mod')
         
         # All this must be in the other thread so it doesn't get out of order
         def process():
-            encode_mod(self.mod, overwrite=True, callback=dialog)
+            if self.mod: # Working from a .dfmod file
+                encode_mod(self.mod, overwrite=True, callback=dialog)
+            else: # Working in standalone mode
+                if os.path.isdir(self.path):
+                    encode_objects(self.objects, self.path, callback=dialog)
+                else:
+                    dir, fname = os.path.split(self.path)
+                    encode_objects(self.objects, dir, callback=dialog)
             if self.parent:
                 self.parent.reload_mods(progress=False)
             if exit:
