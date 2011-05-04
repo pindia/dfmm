@@ -13,9 +13,9 @@ zf.close()
 # Compile and make exe zip
 os.system('python compile.py py2exe')
 zf = zipfile.ZipFile('releases/dfmm-%s-exe.zip' % VERSION, 'w', zipfile.ZIP_DEFLATED)
-dir = os.path.join(os.getcwd(), 'dfmm')
+dir = os.path.join(os.getcwd(), 'dist')
 for base, dirs, files in os.walk(dir):
     for file in files:
-        file = os.path.join(os.getcwd(), 'dfmm', file)
-        zf.write(file, file[len(os.getcwd())+1:])
+        path = os.path.join(os.getcwd(), 'dist', file)
+        zf.write(path, os.path.join('dfmm',file))
 zf.close()

@@ -69,6 +69,7 @@ class ModEditorFrame(ExtendedFrame):
             
     def load_mod(self, mod):
         self.mod = mod
+        self.path = self.mod.path
         self.core_dataset = mod.base
         self.core_objects = self.core_dataset.objects
         dataset = copy.deepcopy(self.core_dataset)
@@ -351,6 +352,7 @@ class ModEditorFrame(ExtendedFrame):
             panel.listbox.Select(i)
             panel.update_listbox(i)
             panel.listbox_clicked(None)
+            self.unsaved_changes = True
         else:
             pass
         
@@ -366,6 +368,7 @@ class ModEditorFrame(ExtendedFrame):
             object.name = dialog.GetValue()
             panel.update_listbox(i)
             panel.listbox_clicked(None)
+            self.unsaved_changes = True
         else:
             pass
         
@@ -395,6 +398,8 @@ class ModEditorFrame(ExtendedFrame):
             else:
                 panel.listbox.SetSelection(i)
             panel.listbox_clicked(None)
+        self.unsaved_changes = True
+
         
         
         
@@ -410,6 +415,7 @@ class ModEditorFrame(ExtendedFrame):
         object.extra_data = old_object.extra_data
         panel.update_listbox(i)
         panel.listbox_clicked(None)
+        self.unsaved_changes = True
         
     def save(self, event, exit=False):
         if self.mod:
