@@ -15,6 +15,7 @@ class ModEditorFrame(ExtendedFrame):
         wx.Frame.__init__(self, parent, title='DFMM Editor', size=(800, 600))
         
         self.parent = parent
+        self.unsaved_changes = False
         
         self.init_menu()
         self.load_templates()
@@ -33,6 +34,7 @@ class ModEditorFrame(ExtendedFrame):
         
     def load_objects(self, objects):
         
+        self.unsaved_changes = False
         self.objects = objects
         
         self.core_object_lookup = {}
@@ -104,14 +106,16 @@ class ModEditorFrame(ExtendedFrame):
         menu_open_directory = self.filemenu.Append(wx.ID_ANY, "Open directory...\tCtrl+Shift+O","")
         self.filemenu.AppendSeparator()
         menu_save = self.filemenu.Append(wx.ID_ANY, "&Save\tCtrl+S","")
-        menu_save_and_exit = self.filemenu.Append(wx.ID_ANY, "Save and &exit","")
-        menu_exit = self.filemenu.Append(wx.ID_ANY, "Exit without saving","")
+        menu_save_as = self.filemenu.Append(wx.ID_ANY, "&Save as...\tCtrl+Shift+S","")
+        self.filemenu.AppendSeparator()
+        menu_exit = self.filemenu.Append(wx.ID_ANY, "Exit","")
         
         self.Bind(wx.EVT_MENU, self.open_file, menu_open_file)
         self.Bind(wx.EVT_MENU, self.open_directory, menu_open_directory)
-        self.Bind(wx.EVT_MENU, self.save, menu_save)
+        self.Bind(wx.EVT_MENU, self.save_as, menu_save_as)
         self.Bind(wx.EVT_MENU, self.exit, menu_exit)
-        self.Bind(wx.EVT_MENU, self.save_and_exit, menu_save_and_exit)
+        self.Bind(wx.EVT_CLOSE, self.exit)
+        self.Bind(wx.EVT_MENU, self.save, menu_save)
         
         self.objectmenu= wx.Menu()
         menu_add = self.objectmenu.Append(wx.ID_ANY, "&Add object...\tCtrl+N","")
@@ -422,6 +426,7 @@ class ModEditorFrame(ExtendedFrame):
                 else:
                     dir, fname = os.path.split(self.path)
                     encode_objects(self.objects, dir, callback=dialog)
+            self.unsaved_changes = False
             if self.parent:
                 self.parent.reload_mods(progress=False)
             if exit:
@@ -431,10 +436,46 @@ class ModEditorFrame(ExtendedFrame):
 
         
     def exit(self, event):
-        self.Close(True)
+        if self.unsaved_changes:
+            dialog = wx.MessageDialog(self, 'Save changes to "%s"?' % self.path, 'Unsaved changes', style=wx.YES|wx.NO|wx.CANCEL|wx.ICON_QUESTION)
+            result = dialog.ShowModal()
+            if result == wx.ID_YES:
+                self.save(None, exit=True)
+            elif result == wx.ID_NO:
+                self.Destroy()
+            else:
+                return
+        else:
+            self.Destroy()
         
-    def save_and_exit(self, event):
-        self.save(None, exit=True)
+    def save_as(self, event):
+        if self.mod:
+            dialog = wx.FileDialog(self, 'Select File', wildcard='*.dfmod', style=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
+            if dialog.ShowModal() == wx.ID_OK:
+                path = dialog.GetPath()
+                self.mod.path = path
+                self.set_title(self.mod.path)
+                self.save(None)
+        elif os.path.isdir(self.path):
+            dialog = wx.DirDialog(self, 'Select directory')
+            if dialog.ShowModal() == wx.ID_OK:
+                path = dialog.GetPath()
+                self.path = path
+                self.set_title(path)
+                self.save(None)
+        else:
+            dialog = wx.FileDialog(self, 'Select File', wildcard='*.txt', style=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
+            if dialog.ShowModal() == wx.ID_OK:
+                path = dialog.GetPath()
+                self.path = path
+                
+                dir, fname = os.path.split(path) # We must rewrite the file names 
+                for object in self.objects:
+                    object.file_name = fname
+                
+                self.set_title(path)
+                self.save(None)            
+                
 
 
 
@@ -565,6 +606,7 @@ class ObjectTypePanel(wx.Panel):
             object.modified = True
         else:
             object.modified = False
+        self.root_frame.unsaved_changes = True
         self.update_listbox(i)        
         
     def update_listbox(self, i):
