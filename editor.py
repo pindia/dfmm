@@ -358,7 +358,7 @@ class ModEditorFrame(ExtendedFrame):
         panel = self.nb.GetCurrentPage()
         i = panel.listbox.GetSelections()[0]
         object = panel.objects[i]
-        if not object.added:
+        if not object.added and self.mod: # Always allow in standalone mode
             self.warning_dialog('Only objects added by the current mod may be renamed.', 'Cannot rename')
             return
         dialog = wx.TextEntryDialog(self, 'Enter new name for object [%s] (do not include object type)' % object, 'Rename object', object.name)
@@ -601,7 +601,10 @@ class ObjectTypePanel(wx.Panel):
         object.invalidate_cache()
         if object.added:
             return
-        core_object = self.root_frame.core_object_lookup[object.type+object.name]
+        try:
+            core_object = self.root_frame.core_object_lookup[object.type+object.name]
+        except KeyError:
+            return
         if core_object.extra_data != object.extra_data:
             object.modified = True
         else:
