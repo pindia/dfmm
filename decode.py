@@ -28,7 +28,8 @@ def decode_file(path):
     for name, raw_data in itertools.izip(
             itertools.islice(split, 0, None, 2),
             itertools.islice(split, 1, None, 2)):
-        raw_data = raw_data.strip('\n') # Strip  extra newlines from start/end
+        raw_data = raw_data.strip('\n\r') # Strip  extra newlines from start/end
+        raw_data = raw_data.replace('\r\n','\n')
         
         if comment:
             raw_data = comment + '\n' + raw_data

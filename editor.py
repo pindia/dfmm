@@ -1,4 +1,6 @@
 import wx, copy
+import wx.aui
+import wx.stc
 import merge
 from frame import ExtendedFrame
 from progress import ProgressDialog, thread_wrapper
@@ -49,9 +51,11 @@ class ModEditorFrame(ExtendedFrame):
         
         
         if hasattr(self, 'nb'):
-            self.nb.DeleteAllPages()
+            for panel in self.panels:
+                self.nb.RemovePage(0)
         else:
-            self.nb = wx.Notebook(self, -1, wx.Point(0,0), wx.Size(0,0), wx.NB_MULTILINE)
+            wx.aui.AuiNotebook.GetCurrentPage = lambda self: self.GetPage(self.GetSelection())
+            self.nb = wx.aui.AuiNotebook(self, -1, wx.Point(0,0), wx.Size(0,0), wx.NB_MULTILINE)
         self.panels = []
         
         for header in sorted(headers.keys()):
@@ -438,7 +442,7 @@ class ModEditorFrame(ExtendedFrame):
             if exit:
                 self.Close(True)
 
-        thread_wrapper(process)()
+        process()
 
         
     def exit(self, event):
