@@ -21,17 +21,14 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         
         
         if not os.path.exists('core'):
-            dialog = wx.MessageDialog(self, 'It appears that you are running DFMM for the first time. Are the files currently in your raws folder unmodified?',
-                                  'Setup',style=wx.YES|wx.NO)
-            if dialog.ShowModal() == wx.ID_YES:
+            result = self.yes_no_dialog('It appears that you are running DFMM for the first time. Are the files currently in your raws folder unmodified?', 'Setup')
+            if result:
                 if not os.path.exists(os.path.join('..','raw','objects')):
-                    dialog = wx.MessageDialog(self, 'Unable to find DF files. The "dfmm" folder should be on the same level as "Dwarf Fortress.exe".', style=wx.OK)
-                    dialog.ShowModal()
+                    self.error_dialog('Unable to find DF files. The "dfmm" folder should be on the same level as the main Dwarf Fortress executable.', 'Error')
                     sys.exit(0)                    
                 shutil.copytree(os.path.join('..','raw','objects'), 'core')
             else:
-                dialog = wx.MessageDialog(self, 'Please restore the raw files to their unmodified state and relaunch DFMM. (Backup your changes to another directory for later import)', style=wx.OK)
-                dialog.ShowModal()
+                self.info_dialog('Please restore the raw files to their unmodified state and relaunch DFMM. (Backup your changes to another directory for later import)','Restore files')
                 sys.exit(0)
                 
         if not os.path.exists('mods'):

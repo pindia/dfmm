@@ -7,7 +7,7 @@ class ExtendedFrame(wx.Frame):
     for use in subclasses '''
     
     def info_dialog(self, message, title):
-        dialog = wx.MessageDialog(self, message, title, style=wx.OK)
+        dialog = wx.MessageDialog(self, message, title, style=wx.OK|wx.ICON_INFORMATION)
         dialog.ShowModal()
         
     def warning_dialog(self, message, title):
@@ -19,11 +19,11 @@ class ExtendedFrame(wx.Frame):
         dialog.ShowModal()
         
     def yes_no_dialog(self, message, title):
-        dialog = wx.MessageDialog(self, message, title, style=wx.YES|wx.NO)
+        dialog = wx.MessageDialog(self, message, title, style=wx.YES|wx.NO|wx.ICON_QUESTION)
         return dialog.ShowModal() == wx.ID_YES
         
     def ok_cancel_dialog(self, message, title):
-        dialog = wx.MessageDialog(self, message, title, style=wx.OK|wx.CANCEL)
+        dialog = wx.MessageDialog(self, message, title, style=wx.OK|wx.CANCEL|wx.ICON_QUESTION)
         return dialog.ShowModal() == wx.ID_OK
         
     def text_entry_dialog(self, message, title, default=''):
