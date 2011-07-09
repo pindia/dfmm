@@ -57,7 +57,8 @@ class DataSet(object):
                         current_object.extra_data = result[0]
                         current_object.modified = True
                         print 'Merged edit to [%s:%s] from mod %s with prior edits (Note: merge was partial)' % (object.type, object.name, mod.name)
-                    print 'Failed to merge edit to [%s:%s] from mod "%s" due to prior edit (Partial merges are disabled)' % (object.type, object.name, mod.name)
+                    else:
+                        print 'Failed to merge edit to [%s:%s] from mod "%s" due to prior edit (Partial merges are disabled)' % (object.type, object.name, mod.name)
             else:
                 print 'Failed to apply edits to [%s:%s] from mod %s due to prior edit (Merges are disabled)' % (object.type, object.name, mod.name)
         for object in mod.deleted_objects:
