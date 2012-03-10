@@ -540,7 +540,8 @@ class MainFrame(frame.ExtendedFrame, frame.TreeController):
         path = os.path.join('..','raw','objects')
         current_files = os.listdir(path)
         for f in current_files:
-            os.remove(os.path.join(path, f))
+            if os.path.isfile(os.path.join(path, f)):
+                os.remove(os.path.join(path, f))
         encode_objects(dataset.objects, path, callback=ProgressDialog(self, 'Installing data'))
         self.last_checksum = self.mods_checksum()
         print 'Install complete'
